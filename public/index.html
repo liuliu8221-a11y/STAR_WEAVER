@@ -2,39 +2,70 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAR WEAVER - Galaxy Memory</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STAR WEAVER - Mobile</title>
     
     <style>
-        /* 页面样式：全屏黑底，无滚动条 */
+        /* 页面基础：禁止滚动，全屏黑底 */
         body { 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
+            margin: 0; padding: 0; overflow: hidden; 
             background-color: #000; 
             font-family: 'Courier New', Courier, monospace;
+            -webkit-user-select: none; /* 禁止手机长按选中文字 */
+            user-select: none;
         }
         
-        /* 画布容器 */
         #sketch-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 100vw; height: 100vh;
+            position: absolute; top: 0; left: 0;
+            z-index: 1;
+        }
+
+        /* --- UI 控件通用样式 --- */
+        .ui-element {
+            position: absolute;
+            z-index: 10; /* 保证浮在画布上面 */
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(0, 0, 0, 0.8); /* 半透明黑底 */
+            color: white;
+            border: 1px solid white;
+            padding: 10px;
+            font-size: 14px;
+            outline: none;
+        }
+        
+        .ui-button:active { background: white; color: black; }
+
+        /* 滑块样式自定义 */
+        input[type=range] {
+            -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 15px; width: 15px;
+            background: white; border-radius: 50%;
+            margin-top: -5px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 2px; background: white;
+        }
+
+        /* 输入框样式 */
+        .ui-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid white;
+            text-align: center;
+            font-size: 18px;
         }
     </style>
 
     <script src="p5.min.js"></script>
     <script src="p5.sound.min.js"></script>
-    
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-
     <div id="sketch-container"></div>
-
     <script src="sketch.js"></script>
-
 </body>
 </html>
