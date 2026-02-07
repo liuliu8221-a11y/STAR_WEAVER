@@ -1,6 +1,8 @@
 # Star Weaver
 ## Short Description 
 *Users can record their voices on the website and create their own star. All recordings will remain on the site, and anyone can click on another user's star to listen to their voice.* 
+<img width="1470" height="802" alt="image" src="https://github.com/user-attachments/assets/d6e02e6a-9e62-4c39-a331-2b1b5fc9f566" />
+
 ## Concept
 *Urban development has diminished human interaction, making loneliness an inescapable sensation. Through this website that preserves voices, we hope to create a space where people in our communication-starved modern society can connect through simple syllables or words—a convergence of sound. Let the vibrant clamor wash away the icy chill of solitude.* 
 
