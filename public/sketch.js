@@ -1,6 +1,6 @@
 /**
- * STAR WEAVER - MOBILE UI VERSION
- * Features: Touch Controls | Sliders | Mobile Responsive
+ * STAR WEAVER - FINAL UI FIXED VERSION
+ * 1. UI Centered 2. No Text Overlap 3. Names Always Visible
  */
 
 let socket;
@@ -17,13 +17,12 @@ let state = 'GALAXY';
 let recordTimer = 0;
 let orbits = []; 
 let myId = ""; 
-let selectedStar = null; // 当前选中的星星
+let selectedStar = null; 
 
-// --- UI 控件变量 ---
+// UI 控件
 let btnCreate, btnRecord, btnCancel, btnHalo, btnDelete;
 let sliderSize, sliderPoints;
 let inputName;
-let uiContainer; // 用于存放设计模式的控件
 
 function setup() {
   let canvas = createCanvas(windowWidth, windowHeight);
@@ -34,7 +33,7 @@ function setup() {
   textAlign(CENTER, CENTER);
   
   calculateOrbits();
-  initMobileUI(); // 初始化所有按钮
+  initMobileUI(); 
 
   try {
       socket = io();
@@ -57,7 +56,6 @@ function setup() {
 function draw() {
   background(0); 
   
-  // 更新 UI 状态可见性
   updateUIVisibility();
 
   if (state === 'DESIGN' || state === 'RECORDING') {
@@ -69,60 +67,58 @@ function draw() {
   drawStaticText();
 }
 
-// --- 初始化所有手机端 UI 控件 ---
 function initMobileUI() {
-    // 1. [GALAXY] 创建星星按钮 (+)
+    // 1. 创建按钮 (+ CREATE STAR)
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
-    btnCreate.position(width/2 - 70, height - 80);
-    btnCreate.size(140, 50);
+    // 样式微调：确保文字居中
+    btnCreate.style('text-align', 'center');
+    btnCreate.style('display', 'flex');
+    btnCreate.style('justify-content', 'center');
+    btnCreate.style('align-items', 'center');
     btnCreate.mousePressed(enterDesignMode);
 
-    // 2. [GALAXY] 删除按钮 (默认隐藏)
+    // 2. 删除按钮
     btnDelete = createButton("DELETE MY STAR");
     btnDelete.class("ui-element ui-button");
     btnDelete.style('border-color', 'red');
     btnDelete.style('color', 'red');
-    btnDelete.position(width/2 - 70, height - 140);
-    btnDelete.size(140, 40);
     btnDelete.hide();
     btnDelete.mousePressed(deleteSelectedStar);
 
-    // --- 以下是设计模式控件 ---
+    // --- 设计模式控件 ---
     
-    // 3. [DESIGN] 名字输入框
+    // 3. 名字输入
     inputName = createInput("");
     inputName.attribute("placeholder", "NAME YOUR STAR");
     inputName.class("ui-element ui-input");
-    inputName.position(width/2 - 100, 80);
-    inputName.size(200, 30);
     inputName.hide();
 
-    // 4. [DESIGN] 尺寸滑块
+    // 4. 尺寸滑块
     sliderSize = createSlider(10, 80, 30);
     sliderSize.class("ui-element");
     sliderSize.hide();
 
-    // 5. [DESIGN] 角数滑块
+    // 5. 角数滑块
     sliderPoints = createSlider(3, 12, 5, 1);
     sliderPoints.class("ui-element");
     sliderPoints.hide();
 
-    // 6. [DESIGN] 切换光晕按钮
+    // 6. 光晕按钮
     btnHalo = createButton("HALO: CIRCLE");
     btnHalo.class("ui-element ui-button");
     btnHalo.mousePressed(toggleHalo);
     btnHalo.hide();
 
-    // 7. [DESIGN] 录音/完成按钮
+    // 7. 录音按钮
     btnRecord = createButton("HOLD TO RECORD");
     btnRecord.class("ui-element ui-button");
-    btnRecord.style('background', 'white'); // 初始反色突出
+    btnRecord.style('background', 'white'); 
     btnRecord.style('color', 'black');
-    btnRecord.mousePressed(handleRecordPress); // 点击处理
+    btnRecord.mousePressed(handleRecordPress); 
     btnRecord.hide();
 
-    // 8. [DESIGN] 取消按钮
+    // 8. 取消按钮
     btnCancel = createButton("CANCEL");
     btnCancel.class("ui-element ui-button");
     btnCancel.mousePressed(() => {
@@ -131,46 +127,55 @@ function initMobileUI() {
     });
     btnCancel.hide();
 
-    // 第一次布局计算
     updateLayout();
 }
 
-// --- 响应式布局更新 ---
+// --- 【关键修改】布局更新逻辑 ---
 function updateLayout() {
-    // 底部控制区布局
-    let bottomY = height - 60;
     let centerX = width / 2;
+    let bottomMargin = 50;
 
-    // GALAXY 界面
-    if(btnCreate) btnCreate.position(centerX - 70, bottomY - 20);
-    if(btnDelete) btnDelete.position(centerX - 70, bottomY - 80);
+    // 1. [修复] 首页按钮绝对居中
+    // 按钮宽度设为 160，X位置 = 中心点 - 宽度的一半
+    if(btnCreate) {
+        btnCreate.size(160, 50);
+        btnCreate.position(centerX - 80, height - 100);
+    }
+    if(btnDelete) {
+        btnDelete.size(160, 40);
+        btnDelete.position(centerX - 80, height - 160);
+    }
 
-    // DESIGN 界面
-    if(inputName) inputName.position(centerX - 100, height * 0.15);
+    // 2. [修复] 设计界面布局 (拉开间距防止重叠)
+    if(inputName) {
+        inputName.size(200, 30);
+        inputName.position(centerX - 100, height * 0.15);
+    }
     
-    // 滑块和按钮排布
-    let controlsY = height * 0.65;
+    let controlsStart = height * 0.60; // 稍微往上提一点
+    let gap = 60; // 【关键】增加垂直间距，防止文字重叠
+
     if(sliderSize) {
-        sliderSize.position(centerX - 120, controlsY);
         sliderSize.size(240);
+        sliderSize.position(centerX - 120, controlsStart);
     }
     if(sliderPoints) {
-        sliderPoints.position(centerX - 120, controlsY + 40);
         sliderPoints.size(240);
+        sliderPoints.position(centerX - 120, controlsStart + gap); // 增加间距
     }
     if(btnHalo) {
-        btnHalo.position(centerX - 120, controlsY + 80);
-        btnHalo.size(240, 30);
+        btnHalo.size(240, 35);
+        btnHalo.position(centerX - 120, controlsStart + gap * 2); // 增加间距
     }
     
     // 底部大按钮
     if(btnRecord) {
-        btnRecord.position(centerX - 120, height - 120);
         btnRecord.size(240, 50);
+        btnRecord.position(centerX - 120, height - 130);
     }
     if(btnCancel) {
-        btnCancel.position(centerX - 120, height - 60);
         btnCancel.size(240, 40);
+        btnCancel.position(centerX - 120, height - 70);
     }
 }
 
@@ -179,14 +184,12 @@ function updateUIVisibility() {
         btnCreate.show();
         inputName.hide(); sliderSize.hide(); sliderPoints.hide(); btnHalo.hide(); btnRecord.hide(); btnCancel.hide();
         
-        // 只有选中了自己的星星才显示删除
         if (selectedStar && selectedStar.owner === myId) {
             btnDelete.show();
         } else {
             btnDelete.hide();
         }
     } else {
-        // DESIGN MODE
         btnCreate.hide(); btnDelete.hide();
         inputName.show(); sliderSize.show(); sliderPoints.show(); btnHalo.show(); btnRecord.show(); btnCancel.show();
         
@@ -194,7 +197,6 @@ function updateUIVisibility() {
             btnRecord.html("RECORDING... (TAP TO STOP)");
             btnRecord.style('background', 'red');
             btnRecord.style('color', 'white');
-            // 录音时隐藏其他调整控件，防止干扰
             sliderSize.hide(); sliderPoints.hide(); btnHalo.hide(); inputName.hide();
         } else {
             btnRecord.html(myStar.name ? "TAP TO RECORD" : "ENTER NAME FIRST");
@@ -207,28 +209,23 @@ function updateUIVisibility() {
 // --- 交互逻辑 ---
 
 function enterDesignMode() {
-    userStartAudio(); // 手机端必须的手势触发
+    userStartAudio(); 
     state = 'DESIGN';
     myStar.name = "";
-    inputName.value(""); // 清空输入框
+    inputName.value(""); 
 }
 
 function handleRecordPress() {
-    // 1. 如果正在录音 -> 停止
     if (state === 'RECORDING') {
         finishStar();
         return;
     }
-    
-    // 2. 如果准备录音
-    // 先检查名字
     let name = inputName.value();
     if (!name || name.trim() === "") {
         alert("Please name your star first!");
         inputName.elt.focus();
         return;
     }
-    
     myStar.name = name;
     startNativeRecording();
 }
@@ -242,34 +239,29 @@ function toggleHalo() {
 function deleteSelectedStar() {
     if (selectedStar && selectedStar.owner === myId) {
         socket.emit("delete_star", selectedStar.id);
-        allStars = allStars.filter(s => s.id !== selectedStar.id); // 本地立即移除
+        allStars = allStars.filter(s => s.id !== selectedStar.id); 
         selectedStar = null;
     }
 }
 
-// 手机端触摸选取
 function mousePressed() {
-    // 如果点击在 UI 控件上，不要触发选星逻辑 (简单判断 Y 轴)
     if (mouseY > height - 150 && state === 'DESIGN') return; 
 
     if (state === 'GALAXY') {
         let found = false;
-        // 寻找点击的星星
         for (let s of allStars) {
             let x = width/2 + cos(s.angle)*s.orbit;
             let y = height/2 + sin(s.angle)*s.orbit;
             if (dist(mouseX, mouseY, x, y) < 40) {
                 selectedStar = s;
-                // 播放声音
                 if (s.voice && s.voice.isLoaded() && !s.voice.isPlaying()) s.voice.play();
                 found = true;
                 break;
             }
         }
-        if (!found) selectedStar = null; // 点击空白处取消选择
+        if (!found) selectedStar = null; 
     }
 }
-
 
 // --- 绘图逻辑 ---
 
@@ -277,50 +269,46 @@ function drawStaticText() {
     push();
     fill(255); noStroke(); textFont('Courier New');
     
-    // 左上角标题
     textAlign(LEFT, TOP);
     textSize(18); textStyle(BOLD);
     text("STAR WEAVER", 20, 20);
     textSize(12); textStyle(NORMAL); fill(255, 0.6);
     text(allStars.length + " STARS ONLINE", 20, 45);
 
-    // 选中提示
+    // 底部提示信息
     if (state === 'GALAXY' && selectedStar) {
         textAlign(CENTER, BOTTOM);
         fill(255); textSize(14);
-        text("SELECTED: " + selectedStar.name, width/2, height - 150);
+        text("SELECTED: " + selectedStar.name, width/2, height - 170); // 位置上移，避开删除按钮
         if(selectedStar.owner !== myId) {
              fill(255, 0.5); textSize(10);
-             text("(READ ONLY)", width/2, height - 135);
+             text("(READ ONLY)", width/2, height - 155);
         }
     }
     
-    // 设计模式下的标签
+    // 设计模式下的标签 (位置跟随滑块)
     if (state === 'DESIGN' && state !== 'RECORDING') {
-        textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.6);
+        textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.8);
+        
         let sliderX = sliderSize.x;
         let sliderY = sliderSize.y;
-        text("SIZE", sliderX, sliderY - 5);
-        text("POINTS", sliderX, sliderPoints.y - 5);
+        text("SIZE", sliderX, sliderY - 8); // 文字在滑块上方 8px
+
+        let pointsY = sliderPoints.y;
+        text("POINTS", sliderX, pointsY - 8);
     }
     pop();
 }
 
 function drawDesignView() {
     drawOrbitGuides();
-    
-    // 从滑块获取值
     myStar.size = sliderSize.value();
     myStar.points = sliderPoints.value();
-
-    // 渲染预览
     renderStar(width/2, height/2, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
     
     if (state === 'RECORDING') {
-        // 录音时间提示
         fill(255, 0, 0); textSize(14); textAlign(CENTER, TOP);
         text("REC: " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", width/2, height/2 + 80);
-        // 超时自动结束
         if (millis() - recordTimer > 3000) finishStar();
     }
 }
@@ -331,13 +319,6 @@ function drawGalaxyView() {
     s.update(); s.display(); 
   }
 }
-
-// ... 保持原有的 loadStarFromData, renderStar, Star class, recording logic ...
-// (为了节省篇幅，这里简写，请保留你之前版本里的这些核心函数，它们不需要变)
-// 务必保留：loadStarFromData, drawOrbitGuides, calculateOrbits, Star类, renderStar
-// 务必保留：startNativeRecording, finishStar, saveAndSendStar, windowResized
-
-// --- 补全原来的核心逻辑 (复制回这里) ---
 
 function loadStarFromData(data) {
     let newSound = null;
@@ -363,23 +344,44 @@ class Star {
     this.voice = soundObj; this.hoverScale = 1.0;
   }
   update() { this.angle += this.speed; }
+  
+  // --- 【关键修改】始终显示名字 ---
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
     let isPlaying = this.voice && this.voice.isLoaded() && this.voice.isPlaying();
-    
-    // 如果是选中的星星，放大并画圈
     let isSelected = (selectedStar && selectedStar.id === this.id);
     let pulse = (isPlaying || isSelected) ? 1.5 : 1.0;
     
     renderStar(x, y, this.sz*pulse, this.sz*0.4*pulse, this.pts, this.hType, this.hSize, 0.9);
     
+    // 文字显示逻辑
+    push(); 
+    translate(x, y); 
+    noStroke(); 
+    textAlign(CENTER, TOP);
+    
+    // 计算文字垂直位置（在星星下方）
+    let textY = this.sz * 2 + 5;
+    
+    // 状态 A: 选中或播放时 -> 高亮，大字
     if (isSelected || isPlaying) {
-        push(); translate(x, y); fill(255); noStroke(); textAlign(CENTER, TOP);
-        textSize(max(10, this.sz * 0.4)); text(this.name, 0, this.sz*2+5);
-        if(isSelected) { noFill(); stroke(255, 0.5); ellipse(0,0, this.sz*4); }
-        pop();
+        fill(255, 255); // 纯白
+        textSize(max(12, this.sz * 0.5));
+        textStyle(BOLD);
+        text(this.name, 0, textY);
+        if(isSelected) { 
+            noFill(); stroke(255, 0.5); ellipse(0,0, this.sz*4); // 选中光圈
+        }
+    } 
+    // 状态 B: 平时状态 -> 半透明，小字 (这里实现了“不点也能看到”)
+    else {
+        fill(255, 150); // 半透明灰白
+        textSize(10);
+        textStyle(NORMAL);
+        text(this.name, 0, textY);
     }
+    pop();
   }
 }
 
@@ -434,7 +436,7 @@ function saveAndSendStar() {
     allStars.push(new Star(starData, loadSound(url)));
     if(socket) socket.emit('drawing', starData);
     state = 'GALAXY';
-    selectedStar = null; // 重置选择
+    selectedStar = null; 
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); calculateOrbits(); updateLayout(); }
