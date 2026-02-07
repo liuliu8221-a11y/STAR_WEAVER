@@ -3,7 +3,9 @@ const app = express();
 const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
-const io = new Server(server);
+const io = new Server(server, {
+    maxHttpBufferSize: 1e8 // 允许发送 100MB 以内的数据 (足够存3秒音频了)
+});
 
 // 托管 public 文件夹
 app.use(express.static("public"));

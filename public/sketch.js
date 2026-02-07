@@ -1,6 +1,6 @@
 /**
- * STAR WEAVER - FINAL LOCAL VERSION
- * 包含：原版UI + 记忆功能 + 简介文字 + 动态轨道
+ * STAR WEAVER - AUDIO NETWORK VERSION
+ * Fix: Sends Audio Data via Socket.io (Base64)
  */
 
 let socket;
@@ -9,7 +9,7 @@ let myStar = { points: 5, size: 30, haloType: 'circle', haloSize: 1.5 };
 let mic, recorder, soundFile;
 let state = 'DESIGN'; 
 let recordTimer = 0;
-let orbits = []; // 动态轨道
+let orbits = []; 
 
 function setup() {
   let canvas = createCanvas(windowWidth, windowHeight);
@@ -20,42 +20,58 @@ function setup() {
   
   calculateOrbits();
 
-  // --- 核心：连接服务器 ---
-  // 这里 socket = io() 会自动寻找 localhost:3000
   try {
       socket = io();
       
-      // 接收历史记忆
+      // --- 接收历史 (含音频数据) ---
       socket.on("history", (history) => {
-          console.log("加载历史:", history.length);
+          console.log("加载历史星星:", history.length);
           for (let data of history) {
-              allStars.push(new Star(data, null));
+              loadStarFromData(data); // 使用新函数加载
           }
       });
 
-      // 接收实时新星
+      // --- 接收实时新星 (含音频数据) ---
       socket.on("drawing", (data) => {
-          allStars.push(new Star(data, null));
+          console.log("收到新星!");
+          loadStarFromData(data); // 使用新函数加载
       });
   } catch(e) {
       console.log("未连接到服务器");
   }
 
   mic = new p5.AudioIn();
+  mic.start(); // 确保麦克风尽早启动
+  
   recorder = new p5.SoundRecorder();
+  recorder.setInput(mic);
+  
   soundFile = new p5.SoundFile();
 }
 
 function draw() {
   background(0); 
-
   if (state === 'DESIGN' || state === 'RECORDING') {
     drawDesignView();
   } else {
     drawGalaxyView();
   }
-  
   drawUI();
+}
+
+// --- 辅助函数：从数据还原星星和声音 ---
+function loadStarFromData(data) {
+    let newSound = null;
+    
+    // 如果数据里包含音频字符串 (audioData)
+    if (data.audioData) {
+        // 创建一个临时的 SoundFile
+        newSound = new p5.SoundFile();
+        // 关键：将 Base64 字符串设置给它
+        newSound.setPath(data.audioData);
+    }
+    
+    allStars.push(new Star(data, newSound));
 }
 
 // --- 界面 UI ---
@@ -64,10 +80,7 @@ function drawUI() {
   translate(40, 50);
   fill(255); noStroke();
   textFont('Courier New');
-  
   textSize(24); textStyle(BOLD); text("STAR WEAVER", 0, 0);
-  
-  // 你要求的简介
   textStyle(NORMAL); textSize(12); fill(255, 0.6);
   text("Leave your own voice in the star universe.", 0, 25);
   
@@ -112,8 +125,9 @@ function calculateOrbits() {
     orbits = [m*0.15, m*0.25, m*0.35, m*0.45];
 }
 
+// --- 星体类 ---
 class Star {
-  constructor(data, voiceFile) {
+  constructor(data, soundObj) {
     this.pts = data.points;
     this.sz = data.size;
     this.hType = data.haloType;
@@ -121,14 +135,17 @@ class Star {
     this.orbit = data.orbit || random(orbits);
     this.angle = data.angle || random(360);
     this.speed = data.speed || random(0.04, 0.12);
-    this.voice = voiceFile; 
+    this.voice = soundObj; // 存储传入的声音对象
     this.hoverScale = 1.0;
   }
   update() { this.angle += this.speed; }
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
-    let pulse = (this.voice && this.voice.isPlaying()) ? 1.2 : 1.0;
+    // 检查声音是否正在播放 (增加 isLoaded 检查防止报错)
+    let isPlaying = this.voice && this.voice.isLoaded() && this.voice.isPlaying();
+    let pulse = isPlaying ? 1.5 : 1.0;
+    
     renderStar(x, y, this.sz*this.hoverScale*pulse, this.sz*0.4*this.hoverScale*pulse, this.pts, this.hType, this.hSize, 0.9);
   }
   checkHoverInteraction() {
@@ -136,70 +153,36 @@ class Star {
     let y = height/2 + sin(this.angle)*this.orbit;
     if (dist(mouseX, mouseY, x, y) < 30*this.hoverScale) {
         this.hoverScale = lerp(this.hoverScale, 1.6, 0.1);
-        if (this.voice && !this.voice.isPlaying()) this.voice.play();
+        // 播放逻辑：确保声音存在、已加载、且没有正在播放
+        if (this.voice && this.voice.isLoaded() && !this.voice.isPlaying()) {
+            this.voice.play();
+        }
     } else {
         this.hoverScale = lerp(this.hoverScale, 1.0, 0.1);
     }
   }
 }
 
-// --- 核心渲染函数：带辉光特效 ---
 function renderStar(x, y, r1, r2, n, halo, hSize, opacity) {
-  push();
-  translate(x, y);
-
-  // ==========================================
-  // ✨ 关键修复：找回“辉光” ✨
-  // 这两行代码让线条产生类似霓虹灯的发光效果
-  drawingContext.shadowBlur = 25;  // 光晕扩散范围 (数值越大越朦胧)
-  drawingContext.shadowColor = 'rgba(255, 255, 255, 0.8)'; // 光晕颜色
-  // ==========================================
+  push(); translate(x, y);
+  // 辉光效果
+  drawingContext.shadowBlur = 25; 
+  drawingContext.shadowColor = 'rgba(255, 255, 255, 0.8)';
   
-  // 1. 绘制光晕 (Halo)
-  stroke(255, opacity * 0.4); 
-  noFill();
+  stroke(255, opacity*0.4); noFill();
+  if (halo === 'circle') ellipse(0,0, r1*2.8*hSize);
+  else if (halo === 'lines') { for(let i=0; i<12; i++){ rotate(30); line(r1*1.3,0, r1*2*hSize,0); } }
+  else if (halo === 'dots') { for(let i=0; i<12; i++){ rotate(30); fill(255, opacity*0.6); noStroke(); circle(r1*2*hSize,0, 2.5); } }
+  else if (halo === 'rings') { noFill(); stroke(255, opacity*0.3); ellipse(0,0, r1*2.2*hSize); ellipse(0,0, r1*3.2*hSize); }
+  else if (halo === 'nebula') { for(let i=0; i<3; i++) { fill(255, opacity*0.1); noStroke(); rotate(frameCount*0.1); ellipse(0,0, r1*4*hSize, r1*1.5*hSize); } }
   
-  if (halo === 'circle') {
-      ellipse(0, 0, r1 * 2.8 * hSize);
-  } else if (halo === 'lines') {
-      for(let i=0; i<12; i++){ 
-          rotate(30); 
-          line(r1 * 1.3, 0, r1 * 2 * hSize, 0); 
-      }
-  } else if (halo === 'dots') {
-      for(let i=0; i<12; i++){ 
-          rotate(30); 
-          fill(255, opacity * 0.6); noStroke(); 
-          circle(r1 * 2 * hSize, 0, 3); 
-      }
-  } else if (halo === 'rings') { // 双重环
-      noFill(); stroke(255, opacity * 0.3);
-      ellipse(0, 0, r1 * 2.2 * hSize);
-      ellipse(0, 0, r1 * 3.2 * hSize);
-  } else if (halo === 'nebula') { // 旋转星云
-      for(let i=0; i<3; i++) {
-          fill(255, opacity * 0.1); 
-          noStroke(); 
-          rotate(frameCount * 0.1); // 让光晕缓慢旋转
-          ellipse(0, 0, r1 * 4 * hSize, r1 * 1.5 * hSize);
-      }
-  }
-
-  // 2. 绘制星星本体
-  fill(255, opacity); 
-  noStroke();
-  
+  fill(255, opacity); noStroke();
   beginShape();
   for (let a = 0; a < 360; a += 360/n) {
-    let sx = cos(a) * r2;
-    let sy = sin(a) * r2;
-    vertex(sx, sy);
-    sx = cos(a + 180/n) * r1;
-    sy = sin(a + 180/n) * r1;
-    vertex(sx, sy);
+    vertex(cos(a)*r2, sin(a)*r2);
+    vertex(cos(a+180/n)*r1, sin(a+180/n)*r1);
   }
   endShape(CLOSE);
-  
   pop();
 }
 
@@ -210,28 +193,59 @@ function keyPressed() {
     if (keyCode === DOWN_ARROW) myStar.size = max(myStar.size-5, 10);
     if (key === ' ') {
         userStartAudio().then(() => {
-            mic.start(() => { recorder.setInput(mic); recorder.record(soundFile); state = 'RECORDING'; recordTimer = millis(); });
+            // 开始录音
+            recorder.record(soundFile); 
+            state = 'RECORDING'; 
+            recordTimer = millis(); 
         });
     }
     if (key.toLowerCase() === 'h') {
-        let t = ['circle', 'dots', 'lines'];
+        let t = ['circle', 'dots', 'lines', 'rings', 'nebula'];
         myStar.haloType = t[(t.indexOf(myStar.haloType)+1)%t.length];
     }
   }
   if (key.toLowerCase() === 'n') state = 'DESIGN';
 }
 
+// --- 关键修改：录音完成后的处理 ---
 function finishStar() {
+  // 1. 停止录音
   recorder.stop();
-  let starData = {
-    points: myStar.points, size: myStar.size,
-    haloType: myStar.haloType, haloSize: myStar.haloSize,
-    orbit: random(orbits), angle: random(360), speed: random(0.04, 0.12)
-  };
-  if(socket) socket.emit('drawing', starData);
-  allStars.push(new Star(starData, soundFile));
-  soundFile = new p5.SoundFile();
-  state = 'GALAXY';
+  
+  // 2. 获取录音的 Blob 对象
+  let soundBlob = soundFile.getBlob();
+  
+  // 3. 将 Blob 转换为 Base64 字符串以便通过 Socket 发送
+  let reader = new FileReader();
+  reader.readAsDataURL(soundBlob);
+  
+  reader.onloadend = function() {
+      let base64Audio = reader.result; // 这就是音频的“文字版”
+      
+      let starData = {
+        points: myStar.points, 
+        size: myStar.size,
+        haloType: myStar.haloType, 
+        haloSize: myStar.haloSize,
+        orbit: random(orbits), 
+        angle: random(360), 
+        speed: random(0.04, 0.12),
+        audioData: base64Audio // 重点：把音频数据放进包里！
+      };
+      
+      // 4. 发送完整数据包
+      if(socket) socket.emit('drawing', starData);
+      
+      // 5. 本地显示
+      // 为了本地不需要重新解码，我们直接用刚才录好的 soundFile
+      // 但为了逻辑统一，这里其实已经不需要特别处理，因为 .emit 出去后
+      // 我们本地也直接存入数组即可。为了性能，我们直接用 soundFile
+      allStars.push(new Star(starData, soundFile));
+      
+      // 6. 重置
+      soundFile = new p5.SoundFile();
+      state = 'GALAXY';
+  }
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); calculateOrbits(); }
