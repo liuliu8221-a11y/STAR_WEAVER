@@ -1,7 +1,9 @@
+
 let socket;
 let allStars = [];
-let myStar = { points: 5, size: 30, haloType: 'circle', haloSize: 1.5, name: "" };
+let myStar = { points: 5, size: 20, haloType: 'circle', haloSize: 1.5, name: "" };
 
+//record
 let mic;
 let mediaRecorder;
 let audioChunks = [];
@@ -13,7 +15,7 @@ let orbits = [];
 let myId = ""; 
 let selectedStar = null; 
 
-// UI
+//UI
 let btnCreate, btnRecord, btnCancel, btnHalo, btnDelete;
 let sliderSize, sliderPoints;
 let inputName;
@@ -62,7 +64,7 @@ function draw() {
 }
 
 function initMobileUI() {
-    // bottom
+    //bottom
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
     btnCreate.mousePressed(enterDesignMode);
@@ -74,13 +76,14 @@ function initMobileUI() {
     btnDelete.hide();
     btnDelete.mousePressed(deleteSelectedStar);
 
-    
+  
     inputName = createInput("");
     inputName.attribute("placeholder", "NAME YOUR STAR");
     inputName.class("ui-element ui-input");
     inputName.hide();
 
-    sliderSize = createSlider(10, 80, 30);
+    
+    sliderSize = createSlider(5, 50, 20);
     sliderSize.class("ui-element");
     sliderSize.hide();
 
@@ -111,11 +114,10 @@ function initMobileUI() {
     updateLayout();
 }
 
-
 function updateLayout() {
     let centerX = width / 2;
 
-   
+    
     if(btnCreate) {
         btnCreate.size(160, 50);
         btnCreate.position(centerX - 80, height - 100);
@@ -131,7 +133,6 @@ function updateLayout() {
         inputName.position(centerX - 100, height * 0.15);
     }
     
-   
     let controlsStart = height * 0.60; 
     let gap = 65; 
 
@@ -147,7 +148,6 @@ function updateLayout() {
         btnHalo.size(240, 35);
         btnHalo.position(centerX - 120, controlsStart + gap * 2);
     }
-    
     
     if(btnRecord) {
         btnRecord.size(240, 50);
@@ -204,8 +204,9 @@ function handleRecordPress() {
     startNativeRecording();
 }
 
+
 function toggleHalo() {
-    let t = ['circle', 'dots', 'lines', 'rings', 'nebula'];
+    let t = ['circle', 'dots', 'lines', 'rings', 'nebula', 'spikes', 'glow', 'shimmer', 'hex', 'cross'];
     myStar.haloType = t[(t.indexOf(myStar.haloType)+1)%t.length];
     btnHalo.html("HALO: " + myStar.haloType.toUpperCase());
 }
@@ -247,6 +248,16 @@ function drawStaticText() {
     textSize(12); textStyle(NORMAL); fill(255, 0.6);
     text(allStars.length + " STARS ONLINE", 20, 45);
 
+    textAlign(RIGHT, TOP);
+    textSize(11); fill(255, 0.5);
+    let guideText = "";
+    if (width > 400) {
+        guideText = "ABOUT THIS GALAXY:\nRecord your voice to create a star.\nYour sound is preserved here forever.\nClick any star to listen to its story.";
+    } else {
+        guideText = "Record your voice.\nLeave a mark forever.\nListen to others.";
+    }
+    text(guideText, width - 20, 20);
+
     if (state === 'GALAXY' && selectedStar) {
         textAlign(CENTER, BOTTOM);
         fill(255); textSize(14);
@@ -256,7 +267,6 @@ function drawStaticText() {
              text("(READ ONLY)", width/2, height - 155);
         }
     }
-    
     
     if (state === 'DESIGN' && state !== 'RECORDING') {
         textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.8);
@@ -272,8 +282,7 @@ function drawStaticText() {
 }
 
 function drawDesignView() {
-  
-    let designCenterY = height * 0.35;
+    let designCenterY = height * 0.35; 
 
     drawOrbitGuides(designCenterY);
     
@@ -322,7 +331,6 @@ class Star {
   }
   update() { this.angle += this.speed; }
   
-  // Name Bottom
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
@@ -339,7 +347,6 @@ class Star {
     let textY = this.sz * 2 + 5;
     
     if (isSelected || isPlaying) {
-        
         fill(255, 255); 
         textSize(max(12, this.sz * 0.5));
         textStyle(BOLD);
@@ -349,7 +356,6 @@ class Star {
         }
     } 
     else {
-        
         fill(255, 120); 
         textSize(10);
         textStyle(NORMAL);
@@ -359,15 +365,39 @@ class Star {
   }
 }
 
+//Startype
 function renderStar(x, y, r1, r2, n, halo, hSize, opacity) {
   push(); translate(x, y);
   drawingContext.shadowBlur = 25; drawingContext.shadowColor = 'rgba(255, 255, 255, 0.8)';
   stroke(255, opacity*0.4); noFill();
+  
+
   if (halo === 'circle') ellipse(0,0, r1*2.8*hSize);
   else if (halo === 'lines') { for(let i=0; i<12; i++){ rotate(30); line(r1*1.3,0, r1*2*hSize,0); } }
   else if (halo === 'dots') { for(let i=0; i<12; i++){ rotate(30); fill(255, opacity*0.6); noStroke(); circle(r1*2*hSize,0, 2.5); } }
   else if (halo === 'rings') { noFill(); stroke(255, opacity*0.3); ellipse(0,0, r1*2.2*hSize); ellipse(0,0, r1*3.2*hSize); }
   else if (halo === 'nebula') { for(let i=0; i<3; i++) { fill(255, opacity*0.1); noStroke(); rotate(frameCount*0.1); ellipse(0,0, r1*4*hSize, r1*1.5*hSize); } }
+  
+ 
+  else if (halo === 'spikes') { 
+      for(let i=0; i<8; i++){ rotate(45); line(r1*1.5,0, r1*2.8*hSize,0); } 
+  }
+  else if (halo === 'glow') { 
+      fill(255, opacity*0.15); noStroke(); circle(0,0, r1*3*hSize);
+  }
+  else if (halo === 'shimmer') { 
+      for(let i=0; i<16; i++){ rotate(22.5); fill(255, opacity*0.5); circle(r1*2.2*hSize, 0, 1.5); }
+  }
+  else if (halo === 'hex') { 
+      noFill(); stroke(255, opacity*0.3); 
+      beginShape(); for(let i=0; i<6; i++){ vertex(cos(i*60)*r1*2.5*hSize, sin(i*60)*r1*2.5*hSize); } endShape(CLOSE);
+  }
+  else if (halo === 'cross') { 
+      stroke(255, opacity*0.4); 
+      line(-r1*2.5*hSize, 0, r1*2.5*hSize, 0); 
+      line(0, -r1*2.5*hSize, 0, r1*2.5*hSize);
+  }
+
   fill(255, opacity); noStroke();
   beginShape();
   for (let a = 0; a < 360; a += 360/n) { vertex(cos(a)*r2, sin(a)*r2); vertex(cos(a+180/n)*r1, sin(a+180/n)*r1); }
