@@ -3,17 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAR WEAVER</title>
+    <title>STAR WEAVER - Galaxy Memory</title>
+    
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #000; }
-        #sketch-container { width: 100vw; height: 100vh; }
+        /* 页面样式：全屏黑底，无滚动条 */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        /* 画布容器 */
+        #sketch-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
     </style>
+
     <script src="p5.min.js"></script>
     <script src="p5.sound.min.js"></script>
+    
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+
     <div id="sketch-container"></div>
+
     <script src="sketch.js"></script>
+
 </body>
 </html>

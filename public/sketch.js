@@ -1,6 +1,6 @@
 /**
- * STAR WEAVER - AUDIO NETWORK VERSION
- * Fix: Sends Audio Data via Socket.io (Base64)
+ * STAR WEAVER - BINARY AUDIO VERSION (NO FREEZE)
+ * Fix: Sends Audio as Blob directly (Efficient)
  */
 
 let socket;
@@ -23,29 +23,28 @@ function setup() {
   try {
       socket = io();
       
-      // --- 接收历史 (含音频数据) ---
+      // 1. 接收历史 (二进制数据)
       socket.on("history", (history) => {
-          console.log("加载历史星星:", history.length);
+          console.log("Loading history:", history.length);
           for (let data of history) {
-              loadStarFromData(data); // 使用新函数加载
+              loadStarFromData(data); 
           }
       });
 
-      // --- 接收实时新星 (含音频数据) ---
+      // 2. 接收实时新星 (二进制数据)
       socket.on("drawing", (data) => {
-          console.log("收到新星!");
-          loadStarFromData(data); // 使用新函数加载
+          console.log("New star received!");
+          loadStarFromData(data);
       });
   } catch(e) {
-      console.log("未连接到服务器");
+      console.log("Server offline");
   }
 
+  // 音频初始化
   mic = new p5.AudioIn();
-  mic.start(); // 确保麦克风尽早启动
-  
+  mic.start();
   recorder = new p5.SoundRecorder();
   recorder.setInput(mic);
-  
   soundFile = new p5.SoundFile();
 }
 
@@ -59,28 +58,35 @@ function draw() {
   drawUI();
 }
 
-// --- 辅助函数：从数据还原星星和声音 ---
+// --- 【关键修改】从数据还原星星 (处理二进制 Blob) ---
 function loadStarFromData(data) {
     let newSound = null;
     
-    // 如果数据里包含音频字符串 (audioData)
-    if (data.audioData) {
-        // 创建一个临时的 SoundFile
-        newSound = new p5.SoundFile();
-        // 关键：将 Base64 字符串设置给它
-        newSound.setPath(data.audioData);
+    // 如果数据里包含音频 Blob
+    if (data.audioBlob) {
+        // 1. 将二进制数据转回 Blob 对象
+        // 注意：Socket.io 传过来的二进制可能是 ArrayBuffer，需要包一层
+        let blob = new Blob([data.audioBlob], { type: 'audio/wav' });
+        
+        // 2. 创建一个临时的 URL 指向这个 Blob (内存地址)
+        let url = URL.createObjectURL(blob);
+        
+        // 3. 让 p5 加载这个 URL
+        newSound = loadSound(url);
     }
     
+    // 创建星星，把声音传进去
     allStars.push(new Star(data, newSound));
 }
 
-// --- 界面 UI ---
+// --- UI 界面 ---
 function drawUI() {
   push();
   translate(40, 50);
   fill(255); noStroke();
   textFont('Courier New');
   textSize(24); textStyle(BOLD); text("STAR WEAVER", 0, 0);
+  
   textStyle(NORMAL); textSize(12); fill(255, 0.6);
   text("Leave your own voice in the star universe.", 0, 25);
   
@@ -101,7 +107,6 @@ function drawUI() {
   pop();
 }
 
-// --- 逻辑与绘制 ---
 function drawDesignView() {
   drawOrbitGuides();
   renderStar(width/2, height/2, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
@@ -125,7 +130,6 @@ function calculateOrbits() {
     orbits = [m*0.15, m*0.25, m*0.35, m*0.45];
 }
 
-// --- 星体类 ---
 class Star {
   constructor(data, soundObj) {
     this.pts = data.points;
@@ -135,14 +139,15 @@ class Star {
     this.orbit = data.orbit || random(orbits);
     this.angle = data.angle || random(360);
     this.speed = data.speed || random(0.04, 0.12);
-    this.voice = soundObj; // 存储传入的声音对象
+    this.voice = soundObj; 
     this.hoverScale = 1.0;
   }
   update() { this.angle += this.speed; }
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
-    // 检查声音是否正在播放 (增加 isLoaded 检查防止报错)
+    
+    // 检查声音状态
     let isPlaying = this.voice && this.voice.isLoaded() && this.voice.isPlaying();
     let pulse = isPlaying ? 1.5 : 1.0;
     
@@ -153,7 +158,6 @@ class Star {
     let y = height/2 + sin(this.angle)*this.orbit;
     if (dist(mouseX, mouseY, x, y) < 30*this.hoverScale) {
         this.hoverScale = lerp(this.hoverScale, 1.6, 0.1);
-        // 播放逻辑：确保声音存在、已加载、且没有正在播放
         if (this.voice && this.voice.isLoaded() && !this.voice.isPlaying()) {
             this.voice.play();
         }
@@ -165,17 +169,14 @@ class Star {
 
 function renderStar(x, y, r1, r2, n, halo, hSize, opacity) {
   push(); translate(x, y);
-  // 辉光效果
   drawingContext.shadowBlur = 25; 
   drawingContext.shadowColor = 'rgba(255, 255, 255, 0.8)';
-  
   stroke(255, opacity*0.4); noFill();
   if (halo === 'circle') ellipse(0,0, r1*2.8*hSize);
   else if (halo === 'lines') { for(let i=0; i<12; i++){ rotate(30); line(r1*1.3,0, r1*2*hSize,0); } }
   else if (halo === 'dots') { for(let i=0; i<12; i++){ rotate(30); fill(255, opacity*0.6); noStroke(); circle(r1*2*hSize,0, 2.5); } }
   else if (halo === 'rings') { noFill(); stroke(255, opacity*0.3); ellipse(0,0, r1*2.2*hSize); ellipse(0,0, r1*3.2*hSize); }
   else if (halo === 'nebula') { for(let i=0; i<3; i++) { fill(255, opacity*0.1); noStroke(); rotate(frameCount*0.1); ellipse(0,0, r1*4*hSize, r1*1.5*hSize); } }
-  
   fill(255, opacity); noStroke();
   beginShape();
   for (let a = 0; a < 360; a += 360/n) {
@@ -193,7 +194,6 @@ function keyPressed() {
     if (keyCode === DOWN_ARROW) myStar.size = max(myStar.size-5, 10);
     if (key === ' ') {
         userStartAudio().then(() => {
-            // 开始录音
             recorder.record(soundFile); 
             state = 'RECORDING'; 
             recordTimer = millis(); 
@@ -207,45 +207,34 @@ function keyPressed() {
   if (key.toLowerCase() === 'n') state = 'DESIGN';
 }
 
-// --- 关键修改：录音完成后的处理 ---
+// --- 【关键修改】直接发送 Blob，不转 Base64 ---
 function finishStar() {
-  // 1. 停止录音
   recorder.stop();
   
-  // 2. 获取录音的 Blob 对象
+  // 1. 获取原始的音频 Blob (二进制文件)
   let soundBlob = soundFile.getBlob();
   
-  // 3. 将 Blob 转换为 Base64 字符串以便通过 Socket 发送
-  let reader = new FileReader();
-  reader.readAsDataURL(soundBlob);
+  let starData = {
+    points: myStar.points, 
+    size: myStar.size,
+    haloType: myStar.haloType, 
+    haloSize: myStar.haloSize,
+    orbit: random(orbits), 
+    angle: random(360), 
+    speed: random(0.04, 0.12),
+    audioBlob: soundBlob // 直接发送 Blob!
+  };
   
-  reader.onloadend = function() {
-      let base64Audio = reader.result; // 这就是音频的“文字版”
-      
-      let starData = {
-        points: myStar.points, 
-        size: myStar.size,
-        haloType: myStar.haloType, 
-        haloSize: myStar.haloSize,
-        orbit: random(orbits), 
-        angle: random(360), 
-        speed: random(0.04, 0.12),
-        audioData: base64Audio // 重点：把音频数据放进包里！
-      };
-      
-      // 4. 发送完整数据包
-      if(socket) socket.emit('drawing', starData);
-      
-      // 5. 本地显示
-      // 为了本地不需要重新解码，我们直接用刚才录好的 soundFile
-      // 但为了逻辑统一，这里其实已经不需要特别处理，因为 .emit 出去后
-      // 我们本地也直接存入数组即可。为了性能，我们直接用 soundFile
-      allStars.push(new Star(starData, soundFile));
-      
-      // 6. 重置
-      soundFile = new p5.SoundFile();
-      state = 'GALAXY';
-  }
+  // 2. 发送给服务器 (Socket.io 会自动处理二进制)
+  if(socket) socket.emit('drawing', starData);
+  
+  // 3. 本地显示
+  // 为了本地播放，我们需要给 soundFile 创建一个 URL 或者直接用现有的
+  // 最简单的方法是直接把刚才录好的 soundFile 对象传进去
+  allStars.push(new Star(starData, soundFile));
+  
+  soundFile = new p5.SoundFile();
+  state = 'GALAXY';
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); calculateOrbits(); }
