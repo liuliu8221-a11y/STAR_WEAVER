@@ -3,7 +3,6 @@ const app = express();
 const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
-const { Server } = require("socket.io");
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 允许 100MB，足够传音频了
     cors: {
