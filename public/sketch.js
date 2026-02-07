@@ -1,6 +1,6 @@
 /**
- * STAR WEAVER - TUTORIAL MEMORY VERSION
- * Ref: Remote-painter Week 4
+ * STAR WEAVER - FINAL LOCAL DISPLAY VERSION
+ * Fix: Immediate Local Feedback (See your star instantly)
  */
 
 let socket;
@@ -24,36 +24,30 @@ function setup() {
   
   angleMode(DEGREES);
   colorMode(HSB, 360, 100, 100, 1);
-  textAlign(CENTER, CENTER);
   
   calculateOrbits();
 
   try {
-      // --- 参考文档：连接服务器 ---
       socket = io();
       
       socket.on("connect", () => {
           myId = socket.id;
       });
 
-      // --- 参考文档：接收历史 (History) ---
-      // Receives the full drawing history when first connecting
+      // 接收历史
       socket.on("history", (history) => {
-          console.log("收到历史记录:", history.length);
-          allStars = []; // 清空防止重复
-          for (const data of history) {
-              loadStarFromData(data);
-          }
+          console.log("加载历史:", history.length);
+          allStars = [];
+          for (let data of history) loadStarFromData(data);
       });
 
-      // --- 参考文档：接收别人实时画的 (Drawing) ---
-      // Receives drawing data from other users
+      // 接收别人新画的星星
       socket.on("drawing", (data) => {
-          console.log("收到新星星");
+          console.log("收到别人的星星");
           loadStarFromData(data);
       });
 
-      // 删除指令监听
+      // 接收删除指令
       socket.on("star_deleted", (idToDelete) => {
           allStars = allStars.filter(s => s.id !== idToDelete);
       });
@@ -68,8 +62,7 @@ function setup() {
 
 function draw() {
   background(0); 
-  
-  textAlign(CENTER, CENTER); // 确保每一帧重置对齐
+  textAlign(CENTER, CENTER);
 
   if (state === 'DESIGN' || state === 'RECORDING') {
     drawDesignView();
@@ -80,30 +73,28 @@ function draw() {
   drawUI();
 }
 
-// --- 数据加载 (包含二进制音频处理) ---
+// --- 数据加载 ---
 function loadStarFromData(data) {
     let newSound = null;
     try {
         if (data.audioBlob) {
-            // 将二进制数据转回 Blob
             let blob = new Blob([data.audioBlob], { type: 'audio/webm' });
             let url = URL.createObjectURL(blob);
             newSound = loadSound(url);
         }
-    } catch (e) {
-        console.error("音频解析失败", e);
-    }
+    } catch (e) {}
     
-    // 防止重复
+    // 防止重复添加
     if (!allStars.find(s => s.id === data.id)) {
         allStars.push(new Star(data, newSound));
     }
 }
 
-// --- UI 界面 (自适应) ---
+// --- UI ---
 function drawUI() {
   push();
   
+  // 自适应边距
   let marginX = constrain(width * 0.05, 20, 40);
   let marginY = constrain(height * 0.06, 30, 50);
   translate(marginX, marginY);
@@ -147,9 +138,7 @@ function drawDesignView() {
   drawOrbitGuides();
   renderStar(width/2, height/2, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
   
-  // 预览名字
-  fill(255); noStroke(); 
-  textAlign(CENTER, TOP);
+  fill(255); noStroke(); textAlign(CENTER, TOP);
   textSize(max(10, myStar.size * 0.4));
   text(myStar.name || "YOUR NAME", width/2, height/2 + myStar.size * 2 + 10, width * 0.8);
 
@@ -262,7 +251,11 @@ function keyPressed() {
               break;
           }
       }
-      if (starToDelete) socket.emit("delete_star", starToDelete.id);
+      if (starToDelete) {
+        socket.emit("delete_star", starToDelete.id);
+        // 本地立即删除（可选，增强体验）
+        allStars = allStars.filter(s => s.id !== starToDelete.id);
+      }
   }
 
   if (state === 'DESIGN') {
@@ -314,16 +307,16 @@ function finishStar() {
     }
 }
 
-// --- 关键修改：本地生成 ID，本地先显示，再发送 ---
+// --- 核心修复：先本地显示，再发送 ---
 function saveAndSendStar() {
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
     
-    // 1. 本地生成唯一 ID (这样自己就能删，不用等服务器回传)
+    // 1. 本地立即生成数据 (包括ID)
     const starId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-
+    
     let starData = {
-        id: starId,        // 本地 ID
-        owner: myId,       // 我的 ID
+        id: starId,        // 本地生成ID
+        owner: myId,       // 我的ID
         name: myStar.name,
         points: myStar.points, size: myStar.size,
         haloType: myStar.haloType, haloSize: myStar.haloSize,
@@ -331,17 +324,15 @@ function saveAndSendStar() {
         audioBlob: audioBlob
     };
     
-    // 2. 发送给服务器 (服务器会存入历史，并广播给别人)
-    if(socket) socket.emit('drawing', starData);
-    
-    // 3. 本地直接显示 (Sender knows what they did)
+    // 2. 马上把星星加到本地列表！(不用等服务器)
+    // 创建一个本地 URL 给自己听
     let audioUrl = URL.createObjectURL(audioBlob);
     allStars.push(new Star(starData, loadSound(audioUrl)));
+    
+    // 3. 然后再发给服务器告诉别人
+    if(socket) socket.emit('drawing', starData);
     
     state = 'GALAXY';
 }
 
-function windowResized() { 
-    resizeCanvas(windowWidth, windowHeight); 
-    calculateOrbits(); 
-}
+function windowResized() { resizeCanvas(windowWidth, windowHeight); calculateOrbits(); }
