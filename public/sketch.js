@@ -1,12 +1,19 @@
 /**
- * STAR WEAVER - BINARY AUDIO VERSION (NO FREEZE)
- * Fix: Sends Audio as Blob directly (Efficient)
+ * STAR WEAVER - POTATO QUALITY VERSION (Ultra Compressed)
+ * Features: 6kbps Bitrate (Walkie-talkie vibe)
+ * Size: ~2KB per star (Instant upload)
  */
 
 let socket;
 let allStars = [];
 let myStar = { points: 5, size: 30, haloType: 'circle', haloSize: 1.5 };
-let mic, recorder, soundFile;
+
+// 录音相关
+let mic;
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
 let state = 'DESIGN'; 
 let recordTimer = 0;
 let orbits = []; 
@@ -20,32 +27,29 @@ function setup() {
   
   calculateOrbits();
 
+  // --- 1. 连接服务器 ---
   try {
       socket = io();
       
-      // 1. 接收历史 (二进制数据)
       socket.on("history", (history) => {
-          console.log("Loading history:", history.length);
+          console.log("加载历史星星:", history.length);
           for (let data of history) {
               loadStarFromData(data); 
           }
       });
 
-      // 2. 接收实时新星 (二进制数据)
       socket.on("drawing", (data) => {
-          console.log("New star received!");
           loadStarFromData(data);
       });
   } catch(e) {
-      console.log("Server offline");
+      console.log("离线模式");
   }
 
-  // 音频初始化
+  // --- 2. 初始化麦克风 ---
   mic = new p5.AudioIn();
-  mic.start();
-  recorder = new p5.SoundRecorder();
-  recorder.setInput(mic);
-  soundFile = new p5.SoundFile();
+  mic.start(() => {
+      console.log("麦克风准备就绪");
+  });
 }
 
 function draw() {
@@ -58,28 +62,20 @@ function draw() {
   drawUI();
 }
 
-// --- 【关键修改】从数据还原星星 (处理二进制 Blob) ---
+// --- 数据加载 ---
 function loadStarFromData(data) {
     let newSound = null;
-    
-    // 如果数据里包含音频 Blob
     if (data.audioBlob) {
-        // 1. 将二进制数据转回 Blob 对象
-        // 注意：Socket.io 传过来的二进制可能是 ArrayBuffer，需要包一层
-        let blob = new Blob([data.audioBlob], { type: 'audio/wav' });
-        
-        // 2. 创建一个临时的 URL 指向这个 Blob (内存地址)
+        // 将极小的二进制数据转回 Blob
+        // 注意：这里指明 WebM 格式
+        let blob = new Blob([data.audioBlob], { type: 'audio/webm' });
         let url = URL.createObjectURL(blob);
-        
-        // 3. 让 p5 加载这个 URL
         newSound = loadSound(url);
     }
-    
-    // 创建星星，把声音传进去
     allStars.push(new Star(data, newSound));
 }
 
-// --- UI 界面 ---
+// --- 界面 UI ---
 function drawUI() {
   push();
   translate(40, 50);
@@ -97,10 +93,11 @@ function drawUI() {
     text("> PRESS [SPACE] TO RECORD 3S VOICE", 0, 85);
   } else if (state === 'RECORDING') {
     fill(0, 100, 100);
-    text("CAPTURING: " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", 0, 55);
+    if (frameCount % 60 < 30) circle(-15, 52, 8); 
+    text("TRANSMITTING... " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", 0, 55);
   } else if (state === 'GALAXY') {
     text("NETWORK: ONLINE | STARS: " + allStars.length, 0, 55);
-    text("HOVER STARS TO LISTEN", 0, 75);
+    text("HOVER STARS TO DECODE SIGNAL", 0, 75);
     fill(255, 0.8);
     text("> PRESS [N] TO WEAVE NEW STAR", 0, 105);
   }
@@ -147,7 +144,6 @@ class Star {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
     
-    // 检查声音状态
     let isPlaying = this.voice && this.voice.isLoaded() && this.voice.isPlaying();
     let pulse = isPlaying ? 1.5 : 1.0;
     
@@ -192,13 +188,11 @@ function keyPressed() {
     if (key >= '1' && key <= '9') myStar.points = int(key);
     if (keyCode === UP_ARROW) myStar.size = min(myStar.size+5, 60);
     if (keyCode === DOWN_ARROW) myStar.size = max(myStar.size-5, 10);
-    if (key === ' ') {
-        userStartAudio().then(() => {
-            recorder.record(soundFile); 
-            state = 'RECORDING'; 
-            recordTimer = millis(); 
-        });
+    
+    if (key === ' ' && !isRecording) {
+        startNativeRecording();
     }
+    
     if (key.toLowerCase() === 'h') {
         let t = ['circle', 'dots', 'lines', 'rings', 'nebula'];
         myStar.haloType = t[(t.indexOf(myStar.haloType)+1)%t.length];
@@ -207,34 +201,74 @@ function keyPressed() {
   if (key.toLowerCase() === 'n') state = 'DESIGN';
 }
 
-// --- 【关键修改】直接发送 Blob，不转 Base64 ---
+// --- 【关键修改】全损音质配置 ---
+function startNativeRecording() {
+    userStartAudio();
+    
+    if (mic && mic.stream) {
+        // 这里是关键！配置 MediaRecorder 参数
+        const options = {
+            mimeType: 'audio/webm', // 使用 WebM 格式
+            audioBitsPerSecond: 6000 // ⚠️ 6kbps (极低比特率)，全损音质，文件极小！
+        };
+        
+        try {
+            mediaRecorder = new MediaRecorder(mic.stream, options);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = saveAndSendStar;
+
+            mediaRecorder.start();
+            isRecording = true;
+            state = 'RECORDING';
+            recordTimer = millis();
+            console.log("开始录音: 6kbps 全损模式");
+        } catch (err) {
+            console.error("录音失败:", err);
+            // 如果浏览器不支持 6000 这种超低设置，它会回退到默认，不会报错
+            mediaRecorder = new MediaRecorder(mic.stream); 
+            mediaRecorder.start();
+        }
+    }
+}
+
 function finishStar() {
-  recorder.stop();
-  
-  // 1. 获取原始的音频 Blob (二进制文件)
-  let soundBlob = soundFile.getBlob();
-  
-  let starData = {
-    points: myStar.points, 
-    size: myStar.size,
-    haloType: myStar.haloType, 
-    haloSize: myStar.haloSize,
-    orbit: random(orbits), 
-    angle: random(360), 
-    speed: random(0.04, 0.12),
-    audioBlob: soundBlob // 直接发送 Blob!
-  };
-  
-  // 2. 发送给服务器 (Socket.io 会自动处理二进制)
-  if(socket) socket.emit('drawing', starData);
-  
-  // 3. 本地显示
-  // 为了本地播放，我们需要给 soundFile 创建一个 URL 或者直接用现有的
-  // 最简单的方法是直接把刚才录好的 soundFile 对象传进去
-  allStars.push(new Star(starData, soundFile));
-  
-  soundFile = new p5.SoundFile();
-  state = 'GALAXY';
+    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        isRecording = false;
+    }
+}
+
+function saveAndSendStar() {
+    // 压缩打包
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    
+    // 控制台会打印出文件大小，你可以看到它有多小
+    console.log("打包完成! 文件大小:", audioBlob.size, "bytes"); 
+
+    let starData = {
+        points: myStar.points, 
+        size: myStar.size,
+        haloType: myStar.haloType, 
+        haloSize: myStar.haloSize,
+        orbit: random(orbits), 
+        angle: random(360), 
+        speed: random(0.04, 0.12),
+        audioBlob: audioBlob
+    };
+    
+    if(socket) socket.emit('drawing', starData);
+    
+    // 本地播放
+    let audioUrl = URL.createObjectURL(audioBlob);
+    let localSound = loadSound(audioUrl);
+    
+    allStars.push(new Star(starData, localSound));
+    state = 'GALAXY';
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); calculateOrbits(); }
