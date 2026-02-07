@@ -1,6 +1,7 @@
 /**
- * STAR WEAVER - FINAL UI FIXED VERSION
- * 1. UI Centered 2. No Text Overlap 3. Names Always Visible
+ * STAR WEAVER - VISUAL UPDATE
+ * 1. Brighter Orbits
+ * 2. Star moved UP in Design Mode (to the red circle area)
  */
 
 let socket;
@@ -71,7 +72,6 @@ function initMobileUI() {
     // 1. 创建按钮 (+ CREATE STAR)
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
-    // 样式微调：确保文字居中
     btnCreate.style('text-align', 'center');
     btnCreate.style('display', 'flex');
     btnCreate.style('justify-content', 'center');
@@ -130,13 +130,11 @@ function initMobileUI() {
     updateLayout();
 }
 
-// --- 【关键修改】布局更新逻辑 ---
+// --- 布局更新逻辑 ---
 function updateLayout() {
     let centerX = width / 2;
-    let bottomMargin = 50;
 
-    // 1. [修复] 首页按钮绝对居中
-    // 按钮宽度设为 160，X位置 = 中心点 - 宽度的一半
+    // 1. 首页按钮
     if(btnCreate) {
         btnCreate.size(160, 50);
         btnCreate.position(centerX - 80, height - 100);
@@ -146,14 +144,15 @@ function updateLayout() {
         btnDelete.position(centerX - 80, height - 160);
     }
 
-    // 2. [修复] 设计界面布局 (拉开间距防止重叠)
+    // 2. 设计界面布局
     if(inputName) {
         inputName.size(200, 30);
-        inputName.position(centerX - 100, height * 0.15);
+        inputName.position(centerX - 100, height * 0.12); // 输入框靠上
     }
     
-    let controlsStart = height * 0.60; // 稍微往上提一点
-    let gap = 60; // 【关键】增加垂直间距，防止文字重叠
+    // 控制区起始位置
+    let controlsStart = height * 0.62; 
+    let gap = 55;
 
     if(sliderSize) {
         sliderSize.size(240);
@@ -161,11 +160,11 @@ function updateLayout() {
     }
     if(sliderPoints) {
         sliderPoints.size(240);
-        sliderPoints.position(centerX - 120, controlsStart + gap); // 增加间距
+        sliderPoints.position(centerX - 120, controlsStart + gap);
     }
     if(btnHalo) {
         btnHalo.size(240, 35);
-        btnHalo.position(centerX - 120, controlsStart + gap * 2); // 增加间距
+        btnHalo.position(centerX - 120, controlsStart + gap * 2);
     }
     
     // 底部大按钮
@@ -279,20 +278,20 @@ function drawStaticText() {
     if (state === 'GALAXY' && selectedStar) {
         textAlign(CENTER, BOTTOM);
         fill(255); textSize(14);
-        text("SELECTED: " + selectedStar.name, width/2, height - 170); // 位置上移，避开删除按钮
+        text("SELECTED: " + selectedStar.name, width/2, height - 170); 
         if(selectedStar.owner !== myId) {
              fill(255, 0.5); textSize(10);
              text("(READ ONLY)", width/2, height - 155);
         }
     }
     
-    // 设计模式下的标签 (位置跟随滑块)
+    // 设计模式下的标签
     if (state === 'DESIGN' && state !== 'RECORDING') {
         textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.8);
         
         let sliderX = sliderSize.x;
         let sliderY = sliderSize.y;
-        text("SIZE", sliderX, sliderY - 8); // 文字在滑块上方 8px
+        text("SIZE", sliderX, sliderY - 8); 
 
         let pointsY = sliderPoints.y;
         text("POINTS", sliderX, pointsY - 8);
@@ -301,20 +300,29 @@ function drawStaticText() {
 }
 
 function drawDesignView() {
-    drawOrbitGuides();
+    // 1. 设置设计模式的中心点 (屏幕高度的 40%) -> 对应红色圆圈位置
+    let designCenterY = height * 0.4;
+
+    // 2. 绘制上移后的轨道背景
+    drawOrbitGuides(designCenterY);
+    
     myStar.size = sliderSize.value();
     myStar.points = sliderPoints.value();
-    renderStar(width/2, height/2, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
+    
+    // 3. 在新位置渲染星星
+    renderStar(width/2, designCenterY, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
     
     if (state === 'RECORDING') {
         fill(255, 0, 0); textSize(14); textAlign(CENTER, TOP);
-        text("REC: " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", width/2, height/2 + 80);
+        // 录音提示也相应调整位置
+        text("REC: " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", width/2, designCenterY + 80);
         if (millis() - recordTimer > 3000) finishStar();
     }
 }
 
 function drawGalaxyView() {
-  drawOrbitGuides();
+  // 正常模式：轨道和星星都在正中心
+  drawOrbitGuides(height/2);
   for (let s of allStars) {
     s.update(); s.display(); 
   }
@@ -326,9 +334,11 @@ function loadStarFromData(data) {
     if (!allStars.find(s => s.id === data.id)) allStars.push(new Star(data, newSound));
 }
 
-function drawOrbitGuides() {
-    noFill(); stroke(255, 0.08);
-    for (let r of orbits) ellipse(width/2, height/2, r*2);
+// --- 修改：接受 y 坐标参数，以便在不同模式下画在不同高度 ---
+function drawOrbitGuides(centerY) {
+    noFill(); 
+    stroke(255, 0.25); // 【修改】增加不透明度，让轨道更亮
+    for (let r of orbits) ellipse(width/2, centerY, r*2);
 }
 
 function calculateOrbits() {
@@ -345,7 +355,6 @@ class Star {
   }
   update() { this.angle += this.speed; }
   
-  // --- 【关键修改】始终显示名字 ---
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
@@ -355,28 +364,23 @@ class Star {
     
     renderStar(x, y, this.sz*pulse, this.sz*0.4*pulse, this.pts, this.hType, this.hSize, 0.9);
     
-    // 文字显示逻辑
     push(); 
     translate(x, y); 
     noStroke(); 
     textAlign(CENTER, TOP);
-    
-    // 计算文字垂直位置（在星星下方）
     let textY = this.sz * 2 + 5;
     
-    // 状态 A: 选中或播放时 -> 高亮，大字
     if (isSelected || isPlaying) {
-        fill(255, 255); // 纯白
+        fill(255, 255); 
         textSize(max(12, this.sz * 0.5));
         textStyle(BOLD);
         text(this.name, 0, textY);
         if(isSelected) { 
-            noFill(); stroke(255, 0.5); ellipse(0,0, this.sz*4); // 选中光圈
+            noFill(); stroke(255, 0.5); ellipse(0,0, this.sz*4); 
         }
     } 
-    // 状态 B: 平时状态 -> 半透明，小字 (这里实现了“不点也能看到”)
     else {
-        fill(255, 150); // 半透明灰白
+        fill(255, 150); 
         textSize(10);
         textStyle(NORMAL);
         text(this.name, 0, textY);
