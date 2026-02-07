@@ -1,6 +1,6 @@
 /**
- * STAR WEAVER - RESPONSIVE VERSION
- * Features: Adaptive UI | Text Wrapping | Mobile Friendly
+ * STAR WEAVER - TUTORIAL MEMORY VERSION
+ * Ref: Remote-painter Week 4
  */
 
 let socket;
@@ -19,31 +19,41 @@ let orbits = [];
 let myId = ""; 
 
 function setup() {
-  // 创建全屏画布
   let canvas = createCanvas(windowWidth, windowHeight);
   canvas.parent("sketch-container");
   
   angleMode(DEGREES);
   colorMode(HSB, 360, 100, 100, 1);
+  textAlign(CENTER, CENTER);
   
   calculateOrbits();
 
   try {
+      // --- 参考文档：连接服务器 ---
       socket = io();
       
       socket.on("connect", () => {
           myId = socket.id;
       });
 
+      // --- 参考文档：接收历史 (History) ---
+      // Receives the full drawing history when first connecting
       socket.on("history", (history) => {
-          allStars = [];
-          for (let data of history) loadStarFromData(data);
+          console.log("收到历史记录:", history.length);
+          allStars = []; // 清空防止重复
+          for (const data of history) {
+              loadStarFromData(data);
+          }
       });
 
-      socket.on("new_star_arrival", (data) => {
+      // --- 参考文档：接收别人实时画的 (Drawing) ---
+      // Receives drawing data from other users
+      socket.on("drawing", (data) => {
+          console.log("收到新星星");
           loadStarFromData(data);
       });
 
+      // 删除指令监听
       socket.on("star_deleted", (idToDelete) => {
           allStars = allStars.filter(s => s.id !== idToDelete);
       });
@@ -59,8 +69,7 @@ function setup() {
 function draw() {
   background(0); 
   
-  // 每一帧都重新设置对齐方式，防止冲突
-  textAlign(CENTER, CENTER);
+  textAlign(CENTER, CENTER); // 确保每一帧重置对齐
 
   if (state === 'DESIGN' || state === 'RECORDING') {
     drawDesignView();
@@ -68,43 +77,41 @@ function draw() {
     drawGalaxyView();
   }
   
-  // 绘制 UI (永远在最上层)
   drawUI();
 }
 
-// --- 数据加载 ---
+// --- 数据加载 (包含二进制音频处理) ---
 function loadStarFromData(data) {
     let newSound = null;
     try {
         if (data.audioBlob) {
+            // 将二进制数据转回 Blob
             let blob = new Blob([data.audioBlob], { type: 'audio/webm' });
             let url = URL.createObjectURL(blob);
             newSound = loadSound(url);
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("音频解析失败", e);
+    }
     
+    // 防止重复
     if (!allStars.find(s => s.id === data.id)) {
         allStars.push(new Star(data, newSound));
     }
 }
 
-// --- 【关键修改】自适应 UI ---
+// --- UI 界面 (自适应) ---
 function drawUI() {
   push();
   
-  // 1. 动态边距：屏幕宽度的 5%，最小 20px，最大 40px
   let marginX = constrain(width * 0.05, 20, 40);
   let marginY = constrain(height * 0.06, 30, 50);
-  
   translate(marginX, marginY);
   
   fill(255); noStroke();
   textFont('Courier New');
-  
-  // 2. 强制左对齐 (防止受到星星中心对齐的影响)
   textAlign(LEFT, TOP);
   
-  // 3. 动态标题大小：屏幕越小字越小
   let titleSize = constrain(width * 0.05, 18, 24); 
   let bodySize = constrain(width * 0.03, 10, 12);
   
@@ -112,11 +119,9 @@ function drawUI() {
   text("STAR WEAVER", 0, 0);
   
   textStyle(NORMAL); textSize(bodySize); fill(255, 0.6);
-  // 使用 text box (第4个参数) 限制宽度，防止文字溢出屏幕右侧
   text("Leave your own voice in the star universe.", 0, titleSize + 5, width - marginX * 2);
   
   textSize(bodySize - 1); fill(255, 0.4);
-  let instructions = "";
   let offsetY = titleSize + 30;
 
   if (state === 'DESIGN') {
@@ -142,16 +147,11 @@ function drawDesignView() {
   drawOrbitGuides();
   renderStar(width/2, height/2, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
   
-  // --- 预览名字 (自适应) ---
+  // 预览名字
   fill(255); noStroke(); 
-  textAlign(CENTER, TOP); // 改为顶部对齐，方便往下排版
-  
-  let fontSize = max(10, myStar.size * 0.4);
-  textSize(fontSize);
-  
-  // 限制文本宽度为屏幕的 80%，防止名字太长跑出去
-  let textBoxWidth = width * 0.8;
-  text(myStar.name || "YOUR NAME", width/2, height/2 + myStar.size * 2 + 10, textBoxWidth);
+  textAlign(CENTER, TOP);
+  textSize(max(10, myStar.size * 0.4));
+  text(myStar.name || "YOUR NAME", width/2, height/2 + myStar.size * 2 + 10, width * 0.8);
 
   if (state === 'RECORDING' && millis() - recordTimer > 3000) finishStar();
 }
@@ -168,7 +168,6 @@ function drawOrbitGuides() {
     for (let r of orbits) ellipse(width/2, height/2, r*2);
 }
 
-// 动态计算轨道 (根据屏幕大小)
 function calculateOrbits() {
     let m = min(width, height);
     orbits = [m*0.15, m*0.25, m*0.35, m*0.45];
@@ -184,7 +183,7 @@ class Star {
     this.sz = data.size;
     this.hType = data.haloType;
     this.hSize = data.haloSize;
-    this.orbit = data.orbit || random(orbits); // 这里的 orbits 已经是动态的了
+    this.orbit = data.orbit || random(orbits);
     this.angle = data.angle || random(360);
     this.speed = data.speed || random(0.04, 0.12);
     this.voice = soundObj; 
@@ -208,15 +207,11 @@ class Star {
         
         let fontSize = max(10, this.sz * 0.4);
         textSize(fontSize);
-        
-        // --- 名字防溢出处理 ---
-        // 限制名字宽度，如果名字太长会自动换行
         text(this.name, 0, this.sz * 2 + 5, 200); 
         
         if (this.owner === myId) {
             fill(0, 100, 100);
             textSize(10);
-            // 确保 DELETE 提示也不会跑太远
             text("[X] DELETE", 0, this.sz * 2 + 5 + textAscent() + 15);
         }
         pop();
@@ -319,20 +314,33 @@ function finishStar() {
     }
 }
 
+// --- 关键修改：本地生成 ID，本地先显示，再发送 ---
 function saveAndSendStar() {
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    
+    // 1. 本地生成唯一 ID (这样自己就能删，不用等服务器回传)
+    const starId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+
     let starData = {
+        id: starId,        // 本地 ID
+        owner: myId,       // 我的 ID
         name: myStar.name,
         points: myStar.points, size: myStar.size,
         haloType: myStar.haloType, haloSize: myStar.haloSize,
         orbit: random(orbits), angle: random(360), speed: random(0.04, 0.12),
         audioBlob: audioBlob
     };
+    
+    // 2. 发送给服务器 (服务器会存入历史，并广播给别人)
     if(socket) socket.emit('drawing', starData);
+    
+    // 3. 本地直接显示 (Sender knows what they did)
+    let audioUrl = URL.createObjectURL(audioBlob);
+    allStars.push(new Star(starData, loadSound(audioUrl)));
+    
     state = 'GALAXY';
 }
 
-// 窗口大小改变时，重新计算轨道和重置画布
 function windowResized() { 
     resizeCanvas(windowWidth, windowHeight); 
     calculateOrbits(); 
