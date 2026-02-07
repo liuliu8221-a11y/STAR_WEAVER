@@ -1,14 +1,15 @@
 /**
- * STAR WEAVER - VISUAL UPDATE
- * 1. Brighter Orbits
- * 2. Star moved UP in Design Mode (to the red circle area)
+ * STAR WEAVER - FINAL FIXED VERSION
+ * 1. App.js Error Fixed
+ * 2. Star Position Moved Up (Red Circle)
+ * 3. Names Always Visible
+ * 4. UI Perfectly Centered
  */
 
 let socket;
 let allStars = [];
 let myStar = { points: 5, size: 30, haloType: 'circle', haloSize: 1.5, name: "" };
 
-// 录音相关
 let mic;
 let mediaRecorder;
 let audioChunks = [];
@@ -20,7 +21,7 @@ let orbits = [];
 let myId = ""; 
 let selectedStar = null; 
 
-// UI 控件
+// UI 变量
 let btnCreate, btnRecord, btnCancel, btnHalo, btnDelete;
 let sliderSize, sliderPoints;
 let inputName;
@@ -69,16 +70,11 @@ function draw() {
 }
 
 function initMobileUI() {
-    // 1. 创建按钮 (+ CREATE STAR)
+    // 1. 首页按钮
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
-    btnCreate.style('text-align', 'center');
-    btnCreate.style('display', 'flex');
-    btnCreate.style('justify-content', 'center');
-    btnCreate.style('align-items', 'center');
     btnCreate.mousePressed(enterDesignMode);
 
-    // 2. 删除按钮
     btnDelete = createButton("DELETE MY STAR");
     btnDelete.class("ui-element ui-button");
     btnDelete.style('border-color', 'red');
@@ -86,31 +82,25 @@ function initMobileUI() {
     btnDelete.hide();
     btnDelete.mousePressed(deleteSelectedStar);
 
-    // --- 设计模式控件 ---
-    
-    // 3. 名字输入
+    // 2. 设计页控件
     inputName = createInput("");
     inputName.attribute("placeholder", "NAME YOUR STAR");
     inputName.class("ui-element ui-input");
     inputName.hide();
 
-    // 4. 尺寸滑块
     sliderSize = createSlider(10, 80, 30);
     sliderSize.class("ui-element");
     sliderSize.hide();
 
-    // 5. 角数滑块
     sliderPoints = createSlider(3, 12, 5, 1);
     sliderPoints.class("ui-element");
     sliderPoints.hide();
 
-    // 6. 光晕按钮
     btnHalo = createButton("HALO: CIRCLE");
     btnHalo.class("ui-element ui-button");
     btnHalo.mousePressed(toggleHalo);
     btnHalo.hide();
 
-    // 7. 录音按钮
     btnRecord = createButton("HOLD TO RECORD");
     btnRecord.class("ui-element ui-button");
     btnRecord.style('background', 'white'); 
@@ -118,7 +108,6 @@ function initMobileUI() {
     btnRecord.mousePressed(handleRecordPress); 
     btnRecord.hide();
 
-    // 8. 取消按钮
     btnCancel = createButton("CANCEL");
     btnCancel.class("ui-element ui-button");
     btnCancel.mousePressed(() => {
@@ -130,11 +119,11 @@ function initMobileUI() {
     updateLayout();
 }
 
-// --- 布局更新逻辑 ---
+// --- 关键：UI 布局逻辑 ---
 function updateLayout() {
     let centerX = width / 2;
 
-    // 1. 首页按钮
+    // 1. 首页按钮 (宽160, 居中算法: centerX - 80)
     if(btnCreate) {
         btnCreate.size(160, 50);
         btnCreate.position(centerX - 80, height - 100);
@@ -144,15 +133,16 @@ function updateLayout() {
         btnDelete.position(centerX - 80, height - 160);
     }
 
-    // 2. 设计界面布局
+    // 2. 设计页
+    // 输入框
     if(inputName) {
         inputName.size(200, 30);
-        inputName.position(centerX - 100, height * 0.12); // 输入框靠上
+        inputName.position(centerX - 100, height * 0.15);
     }
     
-    // 控制区起始位置
-    let controlsStart = height * 0.62; 
-    let gap = 55;
+    // 控件区域 (整体下移，给星星留出上半部分空间)
+    let controlsStart = height * 0.60; 
+    let gap = 65; // 拉大间距，防止文字重叠
 
     if(sliderSize) {
         sliderSize.size(240);
@@ -167,7 +157,7 @@ function updateLayout() {
         btnHalo.position(centerX - 120, controlsStart + gap * 2);
     }
     
-    // 底部大按钮
+    // 底部操作按钮
     if(btnRecord) {
         btnRecord.size(240, 50);
         btnRecord.position(centerX - 120, height - 130);
@@ -182,12 +172,8 @@ function updateUIVisibility() {
     if (state === 'GALAXY') {
         btnCreate.show();
         inputName.hide(); sliderSize.hide(); sliderPoints.hide(); btnHalo.hide(); btnRecord.hide(); btnCancel.hide();
-        
-        if (selectedStar && selectedStar.owner === myId) {
-            btnDelete.show();
-        } else {
-            btnDelete.hide();
-        }
+        if (selectedStar && selectedStar.owner === myId) btnDelete.show();
+        else btnDelete.hide();
     } else {
         btnCreate.hide(); btnDelete.hide();
         inputName.show(); sliderSize.show(); sliderPoints.show(); btnHalo.show(); btnRecord.show(); btnCancel.show();
@@ -204,8 +190,6 @@ function updateUIVisibility() {
         }
     }
 }
-
-// --- 交互逻辑 ---
 
 function enterDesignMode() {
     userStartAudio(); 
@@ -262,8 +246,6 @@ function mousePressed() {
     }
 }
 
-// --- 绘图逻辑 ---
-
 function drawStaticText() {
     push();
     fill(255); noStroke(); textFont('Courier New');
@@ -274,7 +256,6 @@ function drawStaticText() {
     textSize(12); textStyle(NORMAL); fill(255, 0.6);
     text(allStars.length + " STARS ONLINE", 20, 45);
 
-    // 底部提示信息
     if (state === 'GALAXY' && selectedStar) {
         textAlign(CENTER, BOTTOM);
         fill(255); textSize(14);
@@ -285,43 +266,39 @@ function drawStaticText() {
         }
     }
     
-    // 设计模式下的标签
+    // 设计模式标签 (随滑块位置)
     if (state === 'DESIGN' && state !== 'RECORDING') {
         textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.8);
         
         let sliderX = sliderSize.x;
         let sliderY = sliderSize.y;
-        text("SIZE", sliderX, sliderY - 8); 
+        text("SIZE", sliderX, sliderY - 10); 
 
         let pointsY = sliderPoints.y;
-        text("POINTS", sliderX, pointsY - 8);
+        text("POINTS", sliderX, pointsY - 10);
     }
     pop();
 }
 
 function drawDesignView() {
-    // 1. 设置设计模式的中心点 (屏幕高度的 40%) -> 对应红色圆圈位置
-    let designCenterY = height * 0.4;
+    // 【关键修改】星星位置上移至屏幕 35% 处 (对应红色圈圈位置)
+    let designCenterY = height * 0.35;
 
-    // 2. 绘制上移后的轨道背景
     drawOrbitGuides(designCenterY);
     
     myStar.size = sliderSize.value();
     myStar.points = sliderPoints.value();
     
-    // 3. 在新位置渲染星星
     renderStar(width/2, designCenterY, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
     
     if (state === 'RECORDING') {
         fill(255, 0, 0); textSize(14); textAlign(CENTER, TOP);
-        // 录音提示也相应调整位置
         text("REC: " + nf((millis() - recordTimer) / 1000, 1, 1) + "s", width/2, designCenterY + 80);
         if (millis() - recordTimer > 3000) finishStar();
     }
 }
 
 function drawGalaxyView() {
-  // 正常模式：轨道和星星都在正中心
   drawOrbitGuides(height/2);
   for (let s of allStars) {
     s.update(); s.display(); 
@@ -334,10 +311,9 @@ function loadStarFromData(data) {
     if (!allStars.find(s => s.id === data.id)) allStars.push(new Star(data, newSound));
 }
 
-// --- 修改：接受 y 坐标参数，以便在不同模式下画在不同高度 ---
 function drawOrbitGuides(centerY) {
     noFill(); 
-    stroke(255, 0.25); // 【修改】增加不透明度，让轨道更亮
+    stroke(255, 0.25); 
     for (let r of orbits) ellipse(width/2, centerY, r*2);
 }
 
@@ -355,6 +331,7 @@ class Star {
   }
   update() { this.angle += this.speed; }
   
+  // --- 名字显示逻辑 ---
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
@@ -371,6 +348,7 @@ class Star {
     let textY = this.sz * 2 + 5;
     
     if (isSelected || isPlaying) {
+        // 选中时：高亮、大字
         fill(255, 255); 
         textSize(max(12, this.sz * 0.5));
         textStyle(BOLD);
@@ -380,7 +358,8 @@ class Star {
         }
     } 
     else {
-        fill(255, 150); 
+        // 【关键】未选中时：半透明、常驻显示
+        fill(255, 120); 
         textSize(10);
         textStyle(NORMAL);
         text(this.name, 0, textY);

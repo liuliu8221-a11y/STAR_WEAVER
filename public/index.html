@@ -36,16 +36,22 @@
         
         .ui-button:active { background: white; color: black; }
 
+        /* --- 修复警告的关键部分 --- */
         /* 滑块样式自定义 */
         input[type=range] {
-            -webkit-appearance: none; background: transparent;
+            -webkit-appearance: none; 
+            appearance: none; /* 加上这一行解决黄色警告 */
+            background: transparent;
         }
+        
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
+            appearance: none; /* 这里也建议加上 */
             height: 15px; width: 15px;
             background: white; border-radius: 50%;
             margin-top: -5px;
         }
+        
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%; height: 2px; background: white;
         }
@@ -57,6 +63,7 @@
             border-bottom: 1px solid white;
             text-align: center;
             font-size: 18px;
+            color: white; /* 确保输入文字是白色的 */
         }
     </style>
 
