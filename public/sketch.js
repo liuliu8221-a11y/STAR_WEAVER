@@ -1,3 +1,4 @@
+
 let socket;
 let allStars = [];
 let myStar = { points: 5, size: 20, haloType: 'circle', haloSize: 1.5, name: "" };
@@ -8,15 +9,19 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 let tempAudioBlob = null;
+let supportedMimeType = ""; 
 
 
-let state = 'INTRO';
+let state = 'INTRO'; 
 let recordTimer = 0;
 let orbits = []; 
 let myId = ""; 
 let selectedStar = null; 
 
-// UI
+//God mode
+let isAdmin = false;
+
+
 let btnCreate, btnRecord, btnCancel, btnHalo, btnDelete;
 let btnConfirm, btnRerecord;
 let sliderSize, sliderPoints;
@@ -30,6 +35,16 @@ function setup() {
   colorMode(HSB, 360, 100, 100, 1);
   textAlign(CENTER, CENTER);
   
+ 
+  let params = getURLParams();
+  if (params.admin === 'true') {
+      isAdmin = true;
+      console.log("⚠️ ADMIN MODE ACTIVATED");
+  }
+
+  
+  checkSupportedMimeType();
+
   calculateOrbits();
   initMobileUI(); 
 
@@ -47,66 +62,72 @@ function setup() {
       });
   } catch(e) {}
 
-  
   mic = new p5.AudioIn();
+}
+
+
+function checkSupportedMimeType() {
+    const types = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4", 
+        "audio/ogg",
+        "" 
+    ];
+    
+    for (let type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+            supportedMimeType = type;
+            console.log("Using Audio Format: " + (type || "default"));
+            return;
+        }
+    }
 }
 
 function draw() {
   background(0); 
-  
-  
   updateUIVisibility();
 
   if (state === 'INTRO') {
-    
     drawIntroScreen();
   } 
   else if (state === 'GALAXY') {
-    
     drawGalaxyView();
     drawStaticText();
   } 
   else {
-    
     drawDesignView();
     drawStaticText();
   }
 }
 
-
 function drawIntroScreen() {
-    
     let pulse = map(sin(frameCount * 2), -1, 1, 100, 255);
-    
-    
     drawOrbitGuides(height/2);
 
-    
     fill(255); noStroke();
     textFont('Courier New');
     textSize(32); textStyle(BOLD);
     text("STAR WEAVER", width/2, height/2 - 20);
     
-    
     fill(pulse); 
     textSize(14); textStyle(NORMAL);
     text("[ CLICK ANYWHERE TO ENTER ]", width/2, height/2 + 30);
     
-    
     fill(255, 100); textSize(10);
-    text("Microphone access required for experience", width/2, height - 30);
+    text("Microphone access required", width/2, height - 30);
 }
 
 function initMobileUI() {
-  
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
     btnCreate.mousePressed(enterDesignMode);
 
-    btnDelete = createButton("DELETE MY STAR");
+    btnDelete = createButton("DELETE STAR");
     btnDelete.class("ui-element ui-button");
-    btnDelete.style('border-color', 'red'); btnDelete.style('color', 'red');
-    btnDelete.mousePressed(deleteSelectedStar);
+    btnDelete.style('border-color', 'red'); 
+    btnDelete.style('color', 'red');
+    btnDelete.mousePressed(deleteSelectedStar); 
 
     inputName = createInput("");
     inputName.attribute("placeholder", "NAME YOUR STAR");
@@ -157,17 +178,21 @@ function updateLayout() {
 }
 
 function updateUIVisibility() {
-    
     btnCreate.hide(); btnDelete.hide(); inputName.hide(); sliderSize.hide(); 
     sliderPoints.hide(); btnHalo.hide(); btnRecord.hide(); btnCancel.hide(); 
     btnConfirm.hide(); btnRerecord.hide();
 
-    
     if (state === 'INTRO') return;
 
     if (state === 'GALAXY') {
         btnCreate.show();
-        if (selectedStar && selectedStar.owner === myId) btnDelete.show();
+        
+        if (selectedStar) {
+            if (isAdmin || selectedStar.owner === myId) {
+                btnDelete.html(isAdmin ? "ADMIN DELETE" : "DELETE MY STAR");
+                btnDelete.show();
+            }
+        }
     } 
     else if (state === 'DESIGN' || state === 'RECORDING') {
         inputName.show(); 
@@ -188,20 +213,18 @@ function updateUIVisibility() {
     }
 }
 
-
-
 function mousePressed() {
-    
     if (state === 'INTRO') {
-        userStartAudio().then(() => {
-            mic.start(); 
-            console.log("Audio Context Started");
-        });
+        userStartAudio().then(() => { mic.start(); });
         state = 'GALAXY';
         return; 
     }
 
+    
     if (mouseY > height - 150 && state !== 'GALAXY') return; 
+    
+    //iPhone
+    if (state === 'GALAXY' && mouseY > height - 170 && mouseY < height - 120) return;
 
     if (state === 'GALAXY') {
         let found = false;
@@ -220,16 +243,11 @@ function mousePressed() {
 }
 
 function enterDesignMode() {
-    state = 'DESIGN';
-    myStar.name = "";
-    inputName.value(""); 
-    tempAudioBlob = null;
+    state = 'DESIGN'; myStar.name = ""; inputName.value(""); tempAudioBlob = null;
 }
 
 function resetToGalaxy() {
-    state = 'GALAXY';
-    selectedStar = null;
-    isRecording = false;
+    state = 'GALAXY'; selectedStar = null; isRecording = false;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 
@@ -241,23 +259,36 @@ function handleRecordPress() {
     startNativeRecording();
 }
 
+
 function startNativeRecording() {
-    
     userStartAudio();
     if (mic && mic.stream) {
-        const options = { mimeType: 'audio/webm', audioBitsPerSecond: 6000 };
+        
+        const options = { 
+            mimeType: supportedMimeType, 
+            audioBitsPerSecond: 16000 
+        };
+        
         try {
-            mediaRecorder = new MediaRecorder(mic.stream, options);
+            
+            if (supportedMimeType) {
+                mediaRecorder = new MediaRecorder(mic.stream, options);
+            } else {
+                mediaRecorder = new MediaRecorder(mic.stream);
+            }
+
             audioChunks = [];
             mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                tempAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                
+                let blobType = supportedMimeType || 'audio/webm';
+                tempAudioBlob = new Blob(audioChunks, { type: blobType });
                 state = 'REVIEW'; 
                 isRecording = false;
             };
             mediaRecorder.start();
             isRecording = true; state = 'RECORDING'; recordTimer = millis();
-        } catch (err) { alert("Mic error"); }
+        } catch (err) { alert("Mic error: " + err.message); }
     }
 }
 
@@ -288,13 +319,24 @@ function toggleHalo() {
 }
 
 function deleteSelectedStar() {
-    if (selectedStar && selectedStar.owner === myId) {
+    
+    if (selectedStar && (isAdmin || selectedStar.owner === myId)) {
         socket.emit("delete_star", selectedStar.id);
         allStars = allStars.filter(s => s.id !== selectedStar.id); 
         selectedStar = null;
     }
 }
 
+
+function getURLParams() {
+    let params = {};
+    let parts = window.location.search.substring(1).split('&');
+    for (let i = 0; i < parts.length; i++) {
+        let pair = parts[i].split('=');
+        if(pair[0]) params[pair[0]] = decodeURIComponent(pair[1] || '');
+    }
+    return params;
+}
 
 function drawStaticText() {
     push();
@@ -304,7 +346,10 @@ function drawStaticText() {
     textSize(18); textStyle(BOLD);
     text("STAR WEAVER", 20, 20);
     textSize(12); textStyle(NORMAL); fill(255, 0.6);
-    text(allStars.length + " STARS ONLINE", 20, 45);
+    
+    let subtitle = isAdmin ? "⚠️ ADMIN MODE" : (allStars.length + " STARS ONLINE");
+    if(isAdmin) fill(255, 0, 0);
+    text(subtitle, 20, 45);
 
     textAlign(RIGHT, TOP);
     textSize(11); fill(255, 0.5);
@@ -317,7 +362,7 @@ function drawStaticText() {
         textAlign(CENTER, BOTTOM);
         fill(255); textSize(14);
         text("SELECTED: " + selectedStar.name, width/2, height - 170); 
-        if(selectedStar.owner !== myId) { fill(255, 0.5); textSize(10); text("(READ ONLY)", width/2, height - 155); }
+        if(!isAdmin && selectedStar.owner !== myId) { fill(255, 0.5); textSize(10); text("(READ ONLY)", width/2, height - 155); }
     }
     
     if (state === 'DESIGN') {
@@ -337,14 +382,8 @@ function drawStaticText() {
 function drawDesignView() {
     let designCenterY = height * 0.35; 
     drawOrbitGuides(designCenterY);
-    
-    if (state === 'DESIGN') {
-        myStar.size = sliderSize.value();
-        myStar.points = sliderPoints.value();
-    }
-    
+    if (state === 'DESIGN') { myStar.size = sliderSize.value(); myStar.points = sliderPoints.value(); }
     renderStar(width/2, designCenterY, myStar.size, myStar.size*0.4, myStar.points, myStar.haloType, myStar.haloSize, 1.0);
-    
     if (state === 'RECORDING') {
         fill(255, 0, 0); textSize(14); textAlign(CENTER, TOP);
         let timeLeft = 3000 - (millis() - recordTimer);
