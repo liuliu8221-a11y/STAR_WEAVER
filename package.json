@@ -1,17 +1,13 @@
 {
-  "name": "star_weaver",
+  "name": "star-weaver-memory",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Star Weaver with Server Memory",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   }
 }

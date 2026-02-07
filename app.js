@@ -5,28 +5,30 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
+// 托管 public 文件夹
 app.use(express.static("public"));
 
-// 【Week 4 记忆功能核心】
-const starHistory = []; // 存储所有星星的数组
-const MAX_HISTORY = 1000; // 最多存1000颗
+// 星星的记忆仓库
+const drawingHistory = [];
+const MAX_HISTORY = 5000;
 
 io.on("connection", (socket) => {
     console.log("新用户连接: " + socket.id);
 
-    // 只要有新用户进来，就把之前存的所有星星发给他
-    socket.emit("history", starHistory);
+    // 1. 进场即发送历史记忆
+    socket.emit("history", drawingHistory);
 
-    socket.on("post_star", (data) => {
-        // 存入服务器记忆
-        starHistory.push(data);
-        if (starHistory.length > MAX_HISTORY) starHistory.shift();
-
-        // 广播给其他在线的人
-        socket.broadcast.emit("new_star_arrival", data);
+    // 2. 接收新星星
+    socket.on("drawing", (data) => {
+        drawingHistory.push(data);
+        if (drawingHistory.length > MAX_HISTORY) drawingHistory.shift();
+        
+        // 广播给其他人
+        socket.broadcast.emit("drawing", data);
     });
 });
 
-server.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+const port = process.env.PORT || 3000;
+server.listen(port, () => {
+    console.log("服务器启动成功！请访问 http://localhost:" + port);
 });
