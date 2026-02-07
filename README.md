@@ -17,5 +17,5 @@ Pressing the “create” button at the bottom of the screen allows you to creat
 Finally, pressing the spacebar initiates the recording phase, which automatically concludes after three seconds.
 The star will then join the orbit, circulating alongside the other celestial bodies. * 
 ## Links 
-* github: https://github.com/liuliu8221-a11y/STAR_WEAVER.git * 
+* github: [https://github.com/liuliu8221-a11y/STAR_WEAVER.git](https://github.com/liuliu8221-a11y/STAR_WEAVER.git) * 
 * render: https://star-weaver.onrender.com *
