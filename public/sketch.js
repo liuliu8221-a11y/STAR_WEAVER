@@ -1,11 +1,3 @@
-/**
- * STAR WEAVER - FINAL FIXED VERSION
- * 1. App.js Error Fixed
- * 2. Star Position Moved Up (Red Circle)
- * 3. Names Always Visible
- * 4. UI Perfectly Centered
- */
-
 let socket;
 let allStars = [];
 let myStar = { points: 5, size: 30, haloType: 'circle', haloSize: 1.5, name: "" };
@@ -21,7 +13,7 @@ let orbits = [];
 let myId = ""; 
 let selectedStar = null; 
 
-// UI 变量
+// UI
 let btnCreate, btnRecord, btnCancel, btnHalo, btnDelete;
 let sliderSize, sliderPoints;
 let inputName;
@@ -70,7 +62,7 @@ function draw() {
 }
 
 function initMobileUI() {
-    // 1. 首页按钮
+    // bottom
     btnCreate = createButton("+ CREATE STAR");
     btnCreate.class("ui-element ui-button");
     btnCreate.mousePressed(enterDesignMode);
@@ -82,7 +74,7 @@ function initMobileUI() {
     btnDelete.hide();
     btnDelete.mousePressed(deleteSelectedStar);
 
-    // 2. 设计页控件
+    
     inputName = createInput("");
     inputName.attribute("placeholder", "NAME YOUR STAR");
     inputName.class("ui-element ui-input");
@@ -119,11 +111,11 @@ function initMobileUI() {
     updateLayout();
 }
 
-// --- 关键：UI 布局逻辑 ---
+
 function updateLayout() {
     let centerX = width / 2;
 
-    // 1. 首页按钮 (宽160, 居中算法: centerX - 80)
+   
     if(btnCreate) {
         btnCreate.size(160, 50);
         btnCreate.position(centerX - 80, height - 100);
@@ -133,16 +125,15 @@ function updateLayout() {
         btnDelete.position(centerX - 80, height - 160);
     }
 
-    // 2. 设计页
-    // 输入框
+    
     if(inputName) {
         inputName.size(200, 30);
         inputName.position(centerX - 100, height * 0.15);
     }
     
-    // 控件区域 (整体下移，给星星留出上半部分空间)
+   
     let controlsStart = height * 0.60; 
-    let gap = 65; // 拉大间距，防止文字重叠
+    let gap = 65; 
 
     if(sliderSize) {
         sliderSize.size(240);
@@ -157,7 +148,7 @@ function updateLayout() {
         btnHalo.position(centerX - 120, controlsStart + gap * 2);
     }
     
-    // 底部操作按钮
+    
     if(btnRecord) {
         btnRecord.size(240, 50);
         btnRecord.position(centerX - 120, height - 130);
@@ -266,7 +257,7 @@ function drawStaticText() {
         }
     }
     
-    // 设计模式标签 (随滑块位置)
+    
     if (state === 'DESIGN' && state !== 'RECORDING') {
         textAlign(LEFT, BOTTOM); textSize(12); fill(255, 0.8);
         
@@ -281,7 +272,7 @@ function drawStaticText() {
 }
 
 function drawDesignView() {
-    // 【关键修改】星星位置上移至屏幕 35% 处 (对应红色圈圈位置)
+  
     let designCenterY = height * 0.35;
 
     drawOrbitGuides(designCenterY);
@@ -331,7 +322,7 @@ class Star {
   }
   update() { this.angle += this.speed; }
   
-  // --- 名字显示逻辑 ---
+  // Name Bottom
   display() {
     let x = width/2 + cos(this.angle)*this.orbit;
     let y = height/2 + sin(this.angle)*this.orbit;
@@ -348,7 +339,7 @@ class Star {
     let textY = this.sz * 2 + 5;
     
     if (isSelected || isPlaying) {
-        // 选中时：高亮、大字
+        
         fill(255, 255); 
         textSize(max(12, this.sz * 0.5));
         textStyle(BOLD);
@@ -358,7 +349,7 @@ class Star {
         }
     } 
     else {
-        // 【关键】未选中时：半透明、常驻显示
+        
         fill(255, 120); 
         textSize(10);
         textStyle(NORMAL);

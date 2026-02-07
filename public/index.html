@@ -6,12 +6,12 @@
     <title>STAR WEAVER - Mobile</title>
     
     <style>
-        /* 页面基础：禁止滚动，全屏黑底 */
+        
         body { 
             margin: 0; padding: 0; overflow: hidden; 
             background-color: #000; 
             font-family: 'Courier New', Courier, monospace;
-            -webkit-user-select: none; /* 禁止手机长按选中文字 */
+            -webkit-user-select: none; 
             user-select: none;
         }
         
@@ -21,12 +21,12 @@
             z-index: 1;
         }
 
-        /* --- UI 控件通用样式 --- */
+        /*UI*/
         .ui-element {
             position: absolute;
-            z-index: 10; /* 保证浮在画布上面 */
+            z-index: 10;
             font-family: 'Courier New', Courier, monospace;
-            background: rgba(0, 0, 0, 0.8); /* 半透明黑底 */
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             border: 1px solid white;
             padding: 10px;
@@ -36,17 +36,16 @@
         
         .ui-button:active { background: white; color: black; }
 
-        /* --- 修复警告的关键部分 --- */
-        /* 滑块样式自定义 */
+        
         input[type=range] {
             -webkit-appearance: none; 
-            appearance: none; /* 加上这一行解决黄色警告 */
+            appearance: none; 
             background: transparent;
         }
         
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none; /* 这里也建议加上 */
+            appearance: none; 
             height: 15px; width: 15px;
             background: white; border-radius: 50%;
             margin-top: -5px;
@@ -56,14 +55,14 @@
             width: 100%; height: 2px; background: white;
         }
 
-        /* 输入框样式 */
+        /* type */
         .ui-input {
             background: transparent;
             border: none;
             border-bottom: 1px solid white;
             text-align: center;
             font-size: 18px;
-            color: white; /* 确保输入文字是白色的 */
+            color: white;
         }
     </style>
 

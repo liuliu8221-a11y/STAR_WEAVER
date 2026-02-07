@@ -3,15 +3,15 @@ const app = express();
 const http = require("http");
 const server = http.createServer(app);
 
-// Import libraries
+//Import libraries
 const { Server } = require("socket.io");
 const fs = require("fs");
 const path = require("path");
 
-// File path for saving data
+//File path for saving data
 const DATA_FILE = path.join(__dirname, "star-history.json");
 
-// Configure Socket IO with large buffer for audio
+//Configure Socket IO with large buffer for audio
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, 
     cors: { origin: "*" }
@@ -20,11 +20,11 @@ const io = new Server(server, {
 const port = process.env.PORT || 3000;
 app.use(express.static("public"));
 
-// Memory storage
+//Memory storage
 let drawingHistory = [];
 const MAX_HISTORY = 100; 
 
-// Load data from file
+//Load data from file
 function loadData() {
     try {
         if (fs.existsSync(DATA_FILE)) {
@@ -38,7 +38,7 @@ function loadData() {
     }
 }
 
-// Save data to file
+//Save data to file
 function saveData() {
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(drawingHistory, null, 2));
@@ -47,31 +47,31 @@ function saveData() {
     }
 }
 
-// Load data on startup
+//Load data on startup
 loadData();
 
-// Handle connections
+//Handle connections
 io.on("connection", (socket) => {
     console.log("User connected: " + socket.id);
 
-    // Send history to new user
+    //Send history
     socket.emit("history", drawingHistory);
 
-    // Handle new star creation
+    //Handle new star creation
     socket.on("drawing", (data) => {
         drawingHistory.push(data);
         
-        // Limit history size
+        //Limit history size
         if(drawingHistory.length > MAX_HISTORY) {
             drawingHistory.shift();
         }
 
-        // Save and broadcast
+        //Save and broadcast
         saveData(); 
         socket.broadcast.emit("drawing", data);
     });
 
-    // Handle star deletion
+    //Handle star deletion
     socket.on("delete_star", (idToDelete) => {
         const index = drawingHistory.findIndex(s => s.id === idToDelete);
         
@@ -87,7 +87,7 @@ io.on("connection", (socket) => {
     });
 });
 
-// Start server
+//Start server
 server.listen(port, () => {
     console.log("Server running on port: " + port);
 });
